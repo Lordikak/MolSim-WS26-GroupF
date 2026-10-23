@@ -18,4 +18,10 @@ make
 ```
 
 ## Results
-results are contained in the folder ```output```
+results are contained in the folder `output`
+
+## Options 
+run with additional option `-DENABLE_VTK_OUTPUT=ON` to generate VTK files in `output/vtk`
+```bash
+cmake -S . -B build -DENABLE_VTK_OUTPUT=ON
+```
