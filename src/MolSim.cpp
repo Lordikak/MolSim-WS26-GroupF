@@ -52,6 +52,9 @@ int main(int argc, char *argsv[]) {
     // reset ouput folder
     std::filesystem::remove_all("output");
     std::filesystem::create_directories("output");
+    std::filesystem::create_directories("output/XYZ");
+    std::filesystem::create_directories("output/VTK");
+
 
     double current_time = start_time;
 

@@ -20,7 +20,7 @@ void XYZWriter::plotParticles(std::list<Particle> particles, const std::string &
                               int iteration) {
     std::ofstream file;
     std::stringstream strstr;
-    strstr << "output/" << filename << "_" << std::setfill('0') << std::setw(4) << iteration
+    strstr << "output/XYZ/" << filename << "_" << std::setfill('0') << std::setw(4) << iteration
            << ".xyz";
     file.open(strstr.str().c_str());
     file << particles.size() << std::endl;

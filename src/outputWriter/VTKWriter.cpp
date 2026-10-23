@@ -62,7 +62,7 @@ void VTKWriter::plotParticles(std::list<Particle> particles, const std::string &
 
     // Create filename with iteration number
     std::stringstream strstr;
-    strstr << filename << "_" << std::setfill('0') << std::setw(4) << iteration << ".vtu";
+    strstr << "output/VTK/" << filename << "_" << std::setfill('0') << std::setw(4) << iteration << ".vtu";
 
     // Create writer and set data
     vtkNew<vtkXMLUnstructuredGridWriter> writer;
