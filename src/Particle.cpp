@@ -70,3 +70,12 @@ std::ostream &operator<<(std::ostream &stream, Particle &p) {
     stream << p.toString();
     return stream;
 }
+
+void Particle::setX(std::array<double, 3> new_x) { x = new_x; }
+
+void Particle::setF(std::array<double, 3> new_f) {
+    old_f = f;
+    f = new_f;
+}
+
+void Particle::setV(std::array<double, 3> new_v) { v = new_v; }

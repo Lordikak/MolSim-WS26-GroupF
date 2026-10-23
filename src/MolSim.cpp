@@ -1,4 +1,5 @@
 
+#include <cmath>
 #include <iostream>
 #include <list>
 
@@ -71,26 +72,64 @@ int main(int argc, char *argsv[]) {
     return 0;
 }
 
+void calculateX() {
+    for (auto &p : particles) {
+        const std::array<double, 3> &x = p.getX();
+        const std::array<double, 3> &f = p.getF();
+        const double m = p.getM();
+
+        std::array<double, 3> new_x;
+
+        for (std::size_t i = 0; i < new_x.size(); ++i) {
+            new_x[i] = x[i] + delta_t * f[i] + (delta_t * delta_t / m) * f[i];
+        }
+        p.setX(new_x);
+    }
+}
+
 void calculateF() {
     std::list<Particle>::iterator iterator;
     iterator = particles.begin();
 
     for (auto &p1 : particles) {
-        for (auto &p2 : particles) {
-            // @TODO: insert calculation of forces here!
-        }
-    }
-}
+        std::array<double, 3> f_acting_on_1 = {0., 0., 0.};
 
-void calculateX() {
-    for (auto &p : particles) {
-        // @TODO: insert calculation of position updates here!
+        const int m1 = p1.getM();
+        const std::array<double, 3> x1 = p1.getX();
+
+        for (auto &p2 : particles) {
+            const int m2 = p1.getM();
+            const std::array<double, 3> x2 = p1.getX();
+
+            const std::array<double, 3> delta_x = {x2[0] - x1[0], x2[1] - x1[1], x2[2] - x1[2]};
+
+            const double length = std::sqrt(delta_x[0] * delta_x[0] + delta_x[1] * delta_x[1] +
+                                            delta_x[2] * delta_x[2]);
+
+            const double scale = m1 * m2 / (length * length * length);
+
+            for (std::size_t i = 0; i < f_acting_on_1.size(); ++i) {
+                f_acting_on_1[i] += scale * delta_x[i];
+            }
+        }
+
+        p1.setF(f_acting_on_1);
     }
 }
 
 void calculateV() {
     for (auto &p : particles) {
-        // @TODO: insert calculation of veclocity updates here!
+        const std::array<double, 3> &v = p.getV();
+        const std::array<double, 3> &f = p.getF();
+        const std::array<double, 3> &old_f = p.getOldF();
+        const double m = p.getM();
+
+        std::array<double, 3> new_v;
+
+        for (std::size_t i = 0; i < new_v.size(); ++i) {
+            new_v[i] = v[i] + delta_t * (f[i] + old_f[i]) / (2 * m);
+        }
+        p.setV(new_v);
     }
 }
 

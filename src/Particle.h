@@ -11,7 +11,7 @@
 #include <string>
 
 class Particle {
-   private:
+    private:
     /**
      * Position of the particle
      */
@@ -43,7 +43,7 @@ class Particle {
      */
     int type;
 
-   public:
+    public:
     explicit Particle(int type = 0);
 
     Particle(const Particle &other);
@@ -70,6 +70,12 @@ class Particle {
     bool operator==(Particle &other);
 
     std::string toString() const;
+
+    void setX(std::array<double, 3> new_x);
+
+    void setF(std::array<double, 3> new_x);
+
+    void setV(std::array<double, 3> new_x);
 };
 
 std::ostream &operator<<(std::ostream &stream, Particle &p);
