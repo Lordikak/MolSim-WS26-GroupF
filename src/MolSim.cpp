@@ -2,6 +2,7 @@
 #include <cmath>
 #include <iostream>
 #include <list>
+#include <filesystem>
 
 #include "FileReader.h"
 #include "outputWriter/XYZWriter.h"
@@ -45,6 +46,10 @@ int main(int argc, char *argsv[]) {
 
     FileReader fileReader;
     fileReader.readFile(particles, argsv[1]);
+
+    // reset ouput folder
+    std::filesystem::remove_all("output");
+    std::filesystem::create_directories("output");
 
     double current_time = start_time;
 
