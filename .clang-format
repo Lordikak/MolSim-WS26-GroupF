@@ -1,5 +1,9 @@
 # base is Google style guide
 BasedOnStyle: Google
+# use 4 spaces for indentation
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
 # we want more space per line
 ColumnLimit: 120
 # ensure consistent pointer alignment
