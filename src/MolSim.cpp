@@ -6,6 +6,7 @@
 
 #include "FileReader.h"
 #include "outputWriter/XYZWriter.h"
+#include "outputWriter/VTKWriter.h"
 #include "utils/ArrayUtils.h"
 
 /**** forward declaration of the calculation functions ****/
@@ -32,7 +33,7 @@ void plotParticles(int iteration);
 
 constexpr double start_time = 0;
 constexpr double end_time = 1000;
-// constexpr double end_time = 0.014 * 3;
+// constexpr double end_time = 0.014 * 10;
 
 constexpr double delta_t = 0.014;
 
@@ -54,7 +55,6 @@ int main(int argc, char *argsv[]) {
     std::filesystem::create_directories("output");
     std::filesystem::create_directories("output/XYZ");
     std::filesystem::create_directories("output/VTK");
-
 
     double current_time = start_time;
 
@@ -148,8 +148,15 @@ void calculateV() {
 }
 
 void plotParticles(int iteration) {
+
     std::string out_name("MD_vtk");
 
-    outputWriter::XYZWriter writer;
-    writer.plotParticles(particles, out_name, iteration);
+    outputWriter::XYZWriter xyz_writer;
+    xyz_writer.plotParticles(particles, out_name, iteration);
+
+#ifdef ENABLE_VTK_OUTPUT
+
+    outputWriter::VTKWriter vtk_writer;
+    vtk_writer.plotParticles(particles, out_name, iteration);
+#endif
 }
