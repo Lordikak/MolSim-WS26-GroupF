@@ -1,8 +1,8 @@
 
 #include <cmath>
+#include <filesystem>
 #include <iostream>
 #include <list>
-#include <filesystem>
 
 #include "FileReader.h"
 #include "outputWriter/XYZWriter.h"
@@ -32,6 +32,8 @@ void plotParticles(int iteration);
 
 constexpr double start_time = 0;
 constexpr double end_time = 1000;
+// constexpr double end_time = 0.014 * 3;
+
 constexpr double delta_t = 0.014;
 
 // TODO: what data structure to pick?
@@ -99,17 +101,21 @@ void calculateF() {
     for (auto &p1 : particles) {
         std::array<double, 3> f_acting_on_1 = {0., 0., 0.};
 
-        const int m1 = p1.getM();
+        const double m1 = p1.getM();
         const std::array<double, 3> x1 = p1.getX();
 
         for (auto &p2 : particles) {
-            const int m2 = p1.getM();
-            const std::array<double, 3> x2 = p1.getX();
+            const double m2 = p2.getM();
+            const std::array<double, 3> x2 = p2.getX();
 
             const std::array<double, 3> delta_x = {x2[0] - x1[0], x2[1] - x1[1], x2[2] - x1[2]};
 
             const double length = std::sqrt(delta_x[0] * delta_x[0] + delta_x[1] * delta_x[1] +
                                             delta_x[2] * delta_x[2]);
+
+            if (length == 0) {
+                continue;
+            }
 
             const double scale = m1 * m2 / (length * length * length);
 
