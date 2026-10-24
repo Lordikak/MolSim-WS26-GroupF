@@ -5,8 +5,8 @@
 #include <list>
 
 #include "FileReader.h"
-#include "outputWriter/XYZWriter.h"
 #include "outputWriter/VTKWriter.h"
+#include "outputWriter/XYZWriter.h"
 #include "utils/ArrayUtils.h"
 
 /**** forward declaration of the calculation functions ****/
@@ -85,13 +85,14 @@ int main(int argc, char *argsv[]) {
 void calculateX() {
     for (auto &p : particles) {
         const std::array<double, 3> &x = p.getX();
+        const std::array<double, 3> &v = p.getV();
         const std::array<double, 3> &f = p.getF();
         const double m = p.getM();
 
         std::array<double, 3> new_x;
 
         for (std::size_t i = 0; i < new_x.size(); ++i) {
-            new_x[i] = x[i] + delta_t * f[i] + (delta_t * delta_t / m) * f[i];
+            new_x[i] = x[i] + delta_t * v[i] + (delta_t * delta_t / (2*m)) * f[i];
         }
         p.setX(new_x);
     }
@@ -148,14 +149,12 @@ void calculateV() {
 }
 
 void plotParticles(int iteration) {
-
-    std::string out_name("MD_vtk");
+    std::string out_name("MD_itaration");
 
     outputWriter::XYZWriter xyz_writer;
     xyz_writer.plotParticles(particles, out_name, iteration);
 
 #ifdef ENABLE_VTK_OUTPUT
-
     outputWriter::VTKWriter vtk_writer;
     vtk_writer.plotParticles(particles, out_name, iteration);
 #endif
