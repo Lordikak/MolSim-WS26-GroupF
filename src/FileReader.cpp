@@ -12,20 +12,20 @@
 #include <iostream>
 #include <sstream>
 
+#include "ParticleContainer.h"
+
 FileReader::FileReader() = default;
 
 FileReader::~FileReader() = default;
 
-void FileReader::readFile(std::list<Particle> &particles, char *filename) {
-    std::array<double, 3> x;
-    std::array<double, 3> v;
-    double m;
-    int num_particles = 0;
+void FileReader::ReadFile(ParticleContainer &particles, char *filename) {
+    if (std::ifstream input_file(filename); input_file.is_open()) {
+        Vec3 x{};
+        Vec3 v{};
+        double m;
+        int num_particles = 0;
+        std::string tmp_string;
 
-    std::ifstream input_file(filename);
-    std::string tmp_string;
-
-    if (input_file.is_open()) {
         getline(input_file, tmp_string);
         std::cout << "Read line: " << tmp_string << std::endl;
 
@@ -54,7 +54,7 @@ void FileReader::readFile(std::list<Particle> &particles, char *filename) {
                 exit(-1);
             }
             datastream >> m;
-            particles.emplace_back(x, v, m);
+            particles.add(x, v, m);
 
             getline(input_file, tmp_string);
             std::cout << "Read line: " << tmp_string << std::endl;

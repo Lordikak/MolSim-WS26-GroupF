@@ -11,6 +11,7 @@
 #include <list>
 
 #include "Particle.h"
+#include "ParticleContainer.h"
 
 namespace outputWriter {
 
@@ -20,7 +21,8 @@ class XYZWriter {
 
     virtual ~XYZWriter();
 
-    void plotParticles(const std::list<Particle>& particles, const std::string &filename, int iteration);
+    void PlotParticles(const ParticleContainer &particles, const std::string &filename,
+                       int iteration);
 };
 
 }  // namespace outputWriter

@@ -38,7 +38,7 @@ constexpr double end_time = 1000;
 constexpr double delta_t = 0.014;
 
 // TODO: what data structure to pick?
-std::list<Particle> particles;
+ParticleContainer particles;
 
 int main(int argc, char *argsv[]) {
     std::cout << "Hello from MolSim for PSE!" << std::endl;
@@ -47,8 +47,8 @@ int main(int argc, char *argsv[]) {
         std::cout << "./molsym filename" << std::endl;
     }
 
-    FileReader fileReader;
-    fileReader.readFile(particles, argsv[1]);
+    FileReader file_reader;
+    file_reader.ReadFile(particles, argsv[1]);
 
     // reset ouput folder
     std::filesystem::remove_all("output");
@@ -83,79 +83,52 @@ int main(int argc, char *argsv[]) {
 }
 
 void calculateX() {
-    for (auto &p : particles) {
-        const std::array<double, 3> &x = p.getX();
-        const std::array<double, 3> &v = p.getV();
-        const std::array<double, 3> &f = p.getF();
-        const double m = p.getM();
-
-        std::array<double, 3> new_x;
-
-        for (std::size_t i = 0; i < new_x.size(); ++i) {
-            new_x[i] = x[i] + delta_t * v[i] + (delta_t * delta_t / (2*m)) * f[i];
-        }
-        p.setX(new_x);
+    for (auto p : particles) {
+        p.SetX(p.x() + delta_t * p.v() + (delta_t * delta_t / (2 * p.m())) * p.f());
     }
+}
+
+Vec3 AddForces(const ParticleContainer& particles, const std::size_t start, const std::size_t end, const Vec3& x1, const double m1, Vec3 f) {
+    for (std::size_t j = start; j < end; j++) {
+        const Vec3 delta_x = particles.x(j) - x1;
+        const double length = ArrayUtils::L2Norm(delta_x);
+        const double scale = m1 * particles.m(j) / (length * length * length);
+        f = f + scale * delta_x;
+    }
+    return f;
 }
 
 void calculateF() {
-    std::list<Particle>::iterator iterator;
-    iterator = particles.begin();
+    for (auto p1 : particles) {
+        const double m1 = p1.m();
+        const Vec3 x1 = p1.x();
 
-    for (auto &p1 : particles) {
-        std::array<double, 3> f_acting_on_1 = {0., 0., 0.};
+        const auto i = p1.index();
 
-        const double m1 = p1.getM();
-        const std::array<double, 3> x1 = p1.getX();
+        auto f_acting_on_1 = AddForces(particles, 0, i, x1, m1, Vec3{});
+        f_acting_on_1 = AddForces(particles, i+1, particles.size(), x1, m1, f_acting_on_1);
 
-        for (auto &p2 : particles) {
-            const double m2 = p2.getM();
-            const std::array<double, 3> x2 = p2.getX();
-
-            const std::array<double, 3> delta_x = {x2[0] - x1[0], x2[1] - x1[1], x2[2] - x1[2]};
-
-            const double length = std::sqrt(delta_x[0] * delta_x[0] + delta_x[1] * delta_x[1] +
-                                            delta_x[2] * delta_x[2]);
-
-            if (length == 0) {
-                continue;
-            }
-
-            const double scale = m1 * m2 / (length * length * length);
-
-            for (std::size_t i = 0; i < f_acting_on_1.size(); ++i) {
-                f_acting_on_1[i] += scale * delta_x[i];
-            }
-        }
-
-        p1.setF(f_acting_on_1);
+        p1.SetOldF(p1.f());
+        p1.SetF(f_acting_on_1);
     }
 }
+
+
 
 void calculateV() {
-    for (auto &p : particles) {
-        const std::array<double, 3> &v = p.getV();
-        const std::array<double, 3> &f = p.getF();
-        const std::array<double, 3> &old_f = p.getOldF();
-        const double m = p.getM();
-
-        std::array<double, 3> new_v;
-
-        for (std::size_t i = 0; i < new_v.size(); ++i) {
-            new_v[i] = v[i] + delta_t * (f[i] + old_f[i]) / (2 * m);
-        }
-        p.setV(new_v);
+    for (auto p : particles) {
+        p.SetV(p.v() + delta_t * (p.f() + p.old_f()) / (2 * p.m()));
     }
 }
 
-void plotParticles(int iteration) {
+void plotParticles(const int iteration) {
     std::string out_name("MD_itaration");
 
     outputWriter::XYZWriter xyz_writer;
-    xyz_writer.plotParticles(particles, out_name, iteration);
+    xyz_writer.PlotParticles(particles, out_name, iteration);
 
 #ifdef ENABLE_VTK_OUTPUT
     outputWriter::VTKWriter vtk_writer;
-    vtk_writer.plotParticles(particles, out_name, iteration);
+    vtk_writer.PlotParticles(particles, out_name, iteration);
 #endif
 }
