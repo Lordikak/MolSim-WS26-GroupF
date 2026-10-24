@@ -14,31 +14,28 @@
 /**
  * calculate the force for all particles
  */
-void calculateF();
+void CalculateF(ParticleContainer &particles);
 
 /**
  * calculate the position for all particles
  */
-void calculateX();
+void CalculateX(ParticleContainer &particles);
 
 /**
  * calculate the position for all particles
  */
-void calculateV();
+void CalculateV(ParticleContainer &particles);
 
 /**
  * plot the particles to a xyz-file
  */
-void plotParticles(int iteration);
+void PlotParticles(ParticleContainer &particles, int iteration);
 
-constexpr double start_time = 0;
-constexpr double end_time = 1000;
+constexpr double kStartTime = 0;
+constexpr double kEndTime = 1000;
 // constexpr double end_time = 0.014 * 10;
 
-constexpr double delta_t = 0.014;
-
-// TODO: what data structure to pick?
-ParticleContainer particles;
+constexpr double kDeltaT = 0.014;
 
 int main(int argc, char *argsv[]) {
     std::cout << "Hello from MolSim for PSE!" << std::endl;
@@ -46,6 +43,7 @@ int main(int argc, char *argsv[]) {
         std::cout << "Erroneous programme call! " << std::endl;
         std::cout << "./molsym filename" << std::endl;
     }
+    ParticleContainer particles;
 
     FileReader file_reader;
     file_reader.ReadFile(particles, argsv[1]);
@@ -56,35 +54,35 @@ int main(int argc, char *argsv[]) {
     std::filesystem::create_directories("output/XYZ");
     std::filesystem::create_directories("output/VTK");
 
-    double current_time = start_time;
+    double current_time = kStartTime;
 
     int iteration = 0;
 
     // for this loop, we assume: current x, current f and current v are known
-    while (current_time < end_time) {
+    while (current_time < kEndTime) {
         // calculate new x
-        calculateX();
+        CalculateX(particles);
         // calculate new f
-        calculateF();
+        CalculateF(particles);
         // calculate new v
-        calculateV();
+        CalculateV(particles);
 
         iteration++;
         if (iteration % 10 == 0) {
-            plotParticles(iteration);
+            PlotParticles(particles, iteration);
         }
         std::cout << "Iteration " << iteration << " finished." << std::endl;
 
-        current_time += delta_t;
+        current_time += kDeltaT;
     }
 
     std::cout << "output written. Terminating..." << std::endl;
     return 0;
 }
 
-void calculateX() {
+void CalculateX(ParticleContainer &particles) {
     for (auto p : particles) {
-        p.SetX(p.x() + delta_t * p.v() + (delta_t * delta_t / (2 * p.m())) * p.f());
+        p.SetX(p.x() + kDeltaT * p.v() + (kDeltaT * kDeltaT / (2 * p.m())) * p.f());
     }
 }
 
@@ -99,7 +97,7 @@ Vec3 AddForces(const ParticleContainer &particles, const std::size_t start, cons
     return f;
 }
 
-void calculateF() {
+void CalculateF(ParticleContainer &particles) {
     for (auto p1 : particles) {
         const double m1 = p1.m();
         const Vec3 x1 = p1.x();
@@ -114,20 +112,20 @@ void calculateF() {
     }
 }
 
-void calculateV() {
+void CalculateV(ParticleContainer &particles) {
     for (auto p : particles) {
-        p.SetV(p.v() + delta_t * (p.f() + p.old_f()) / (2 * p.m()));
+        p.SetV(p.v() + kDeltaT * (p.f() + p.old_f()) / (2 * p.m()));
     }
 }
 
-void plotParticles(const int iteration) {
-    std::string out_name("MD_itaration");
+void PlotParticles(ParticleContainer &particles, const int iteration) {
+    const std::string out_name("MD_itaration");
 
-    outputWriter::XYZWriter xyz_writer;
+    output_writer::XYZWriter xyz_writer;
     xyz_writer.PlotParticles(particles, out_name, iteration);
 
 #ifdef ENABLE_VTK_OUTPUT
-    outputWriter::VTKWriter vtk_writer;
+    output_writer::VTKWriter vtk_writer;
     vtk_writer.PlotParticles(particles, out_name, iteration);
 #endif
 }

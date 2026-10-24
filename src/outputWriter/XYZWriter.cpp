@@ -12,7 +12,7 @@
 
 #include "ParticleContainer.h"
 
-namespace outputWriter {
+namespace output_writer {
 
 XYZWriter::XYZWriter() = default;
 
@@ -45,4 +45,4 @@ void XYZWriter::PlotParticles(const ParticleContainer &particles, const std::str
     file.close();
 }
 
-}  // namespace outputWriter
+}  // namespace output_writer

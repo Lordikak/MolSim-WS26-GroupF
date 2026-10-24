@@ -13,6 +13,9 @@
 #include <vtkFloatArray.h>
 #include <vtkIntArray.h>
 #include <vtkPointData.h>
+#include <vtkPoints.h>
+#include <vtkSmartPointer.h>
+#include <vtkUnstructuredGrid.h>
 #include <vtkXMLUnstructuredGridWriter.h>
 
 #include <iomanip>
@@ -20,7 +23,7 @@
 
 #include "ParticleContainer.h"
 
-namespace outputWriter {
+namespace output_writer {
 
 void VTKWriter::PlotParticles(const ParticleContainer &particles, const std::string &filename,
                               const int iteration) {
@@ -76,5 +79,5 @@ void VTKWriter::PlotParticles(const ParticleContainer &particles, const std::str
     // Write the file
     writer->Write();
 }
-}  // namespace outputWriter
+}  // namespace output_writer
 #endif

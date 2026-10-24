@@ -5,7 +5,7 @@
 #include "utils/ArrayUtils.h"
 #include "utils/ArrayVector.h"
 
-constexpr std::size_t DIM = 3;
+constexpr std::size_t kDim = 3;
 
-using Vec3 = std::array<double, DIM>;
-using Vec3Vector = ArrayVector<double, DIM>;
+using Vec3 = std::array<double, kDim>;
+using Vec3Vector = ArrayVector<double, kDim>;

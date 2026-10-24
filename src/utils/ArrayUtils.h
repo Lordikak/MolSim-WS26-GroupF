@@ -5,12 +5,12 @@
  */
 
 #pragma once
+// NOLINTBEGIN
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <list>
-#include <map>
 #include <numeric>
 #include <set>
 #include <sstream>
@@ -121,13 +121,13 @@ template <class Container>
 template <class Container, class F>
 inline Container elementWisePairOp(const Container &lhs, const Container &rhs, F binaryFunction) {
     Container ret = lhs;
-    auto retIter = std::begin(ret);
-    auto lhsIter = std::cbegin(lhs);
-    auto rhsIter = std::cbegin(rhs);
+    auto ret_iter = std::begin(ret);
+    auto lhs_iter = std::cbegin(lhs);
+    auto rhs_iter = std::cbegin(rhs);
 
     const auto count = std::min(std::size(lhs), std::size(rhs));
-    for (std::size_t k = 0; k < count; ++k, ++lhsIter, ++rhsIter, ++retIter) {
-        *retIter = binaryFunction(*lhsIter, *rhsIter);
+    for (std::size_t k = 0; k < count; ++k, ++lhs_iter, ++rhs_iter, ++ret_iter) {
+        *ret_iter = binaryFunction(*lhs_iter, *rhs_iter);
     }
 
     return ret;
@@ -292,3 +292,5 @@ std::enable_if_t<ArrayUtils::is_container<Container>::value, bool> operator==(
     }
     return true;
 }
+
+// NOLINTEND

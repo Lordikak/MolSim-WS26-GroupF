@@ -8,12 +8,10 @@
 #pragma once
 
 #include <fstream>
-#include <list>
 
-#include "Particle.h"
 #include "ParticleContainer.h"
 
-namespace outputWriter {
+namespace output_writer {
 
 class XYZWriter {
    public:
@@ -25,4 +23,4 @@ class XYZWriter {
                        int iteration);
 };
 
-}  // namespace outputWriter
+}  // namespace output_writer

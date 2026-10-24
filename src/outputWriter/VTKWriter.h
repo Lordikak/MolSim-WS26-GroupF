@@ -8,16 +8,10 @@
 #pragma once
 #ifdef ENABLE_VTK_OUTPUT
 
-#include <vtkSmartPointer.h>
-#include <vtkUnstructuredGrid.h>
-
-#include <list>
 #include <string>
-
-#include "Particle.h"
 #include "ParticleContainer.h"
 
-namespace outputWriter {
+namespace output_writer {
 
 /**
  * This class implements the functionality to generate vtk output from
@@ -42,5 +36,5 @@ class VTKWriter {
                               int iteration);
 };
 
-}  // namespace outputWriter
+}  // namespace output_writer
 #endif

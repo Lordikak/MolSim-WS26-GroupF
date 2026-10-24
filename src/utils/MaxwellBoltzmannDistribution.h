@@ -6,6 +6,7 @@
  */
 
 #pragma once
+// NOLINTBEGIN
 
 #include <array>
 #include <random>
@@ -34,3 +35,5 @@ std::array<double, 3> maxwellBoltzmannDistributedVelocity(double averageVelocity
     }
     return randomVelocity;
 }
+
+// NOLINTEND
