@@ -261,7 +261,7 @@ std::enable_if_t<ArrayUtils::is_container<Container>::value, Container> operator
  * @return For all i lhs[i] / rhs.
  */
 template <class Container, class Scalar>
-std::enable_if_t<ArrayUtils::is_container<Container>::value, Container>  operator/(
+std::enable_if_t<ArrayUtils::is_container<Container>::value, Container> operator/(
     const Container &lhs, const Scalar &rhs) {
     return (1.0 / rhs) * lhs;
 }

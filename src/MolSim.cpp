@@ -88,7 +88,8 @@ void calculateX() {
     }
 }
 
-Vec3 AddForces(const ParticleContainer& particles, const std::size_t start, const std::size_t end, const Vec3& x1, const double m1, Vec3 f) {
+Vec3 AddForces(const ParticleContainer &particles, const std::size_t start, const std::size_t end,
+               const Vec3 &x1, const double m1, Vec3 f) {
     for (std::size_t j = start; j < end; j++) {
         const Vec3 delta_x = particles.x(j) - x1;
         const double length = ArrayUtils::L2Norm(delta_x);
@@ -106,14 +107,12 @@ void calculateF() {
         const auto i = p1.index();
 
         auto f_acting_on_1 = AddForces(particles, 0, i, x1, m1, Vec3{});
-        f_acting_on_1 = AddForces(particles, i+1, particles.size(), x1, m1, f_acting_on_1);
+        f_acting_on_1 = AddForces(particles, i + 1, particles.size(), x1, m1, f_acting_on_1);
 
         p1.SetOldF(p1.f());
         p1.SetF(f_acting_on_1);
     }
 }
-
-
 
 void calculateV() {
     for (auto p : particles) {

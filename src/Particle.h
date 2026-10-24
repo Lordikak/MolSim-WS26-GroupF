@@ -11,7 +11,7 @@
 #include <string>
 
 class Particle {
-    private:
+   private:
     /**
      * Position of the particle
      */
@@ -43,7 +43,7 @@ class Particle {
      */
     int type;
 
-    public:
+   public:
     explicit Particle(int type = 0);
 
     Particle(const Particle &other);

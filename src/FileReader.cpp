@@ -50,7 +50,8 @@ void FileReader::ReadFile(ParticleContainer &particles, char *filename) {
                 datastream >> vj;
             }
             if (datastream.eof()) {
-                std::cout << "Error reading file: eof reached unexpectedly reading from line " << i << std::endl;
+                std::cout << "Error reading file: eof reached unexpectedly reading from line " << i
+                          << std::endl;
                 exit(-1);
             }
             datastream >> m;
