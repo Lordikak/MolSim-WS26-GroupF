@@ -9,6 +9,14 @@
 #include "outputWriter/XYZWriter.h"
 #include "utils/ArrayUtils.h"
 
+#if defined(__clang__)
+#define INDEPENDENT_ITERATIONS _Pragma("clang loop vectorize(assume_safety)")
+#elif defined(__GNUC__)
+#define INDEPENDENT_ITERATIONS _Pragma("GCC ivdep")
+#else
+#define INDEPENDENT_ITERATIONS
+#endif
+
 /**** forward declaration of the calculation functions ****/
 
 /**
@@ -86,29 +94,26 @@ void CalculateX(ParticleContainer &particles) {
     }
 }
 
-Vec3 AddForces(const ParticleContainer &particles, const std::size_t start, const std::size_t end,
-               const Vec3 &x1, const double m1, Vec3 f) {
-    for (std::size_t j = start; j < end; j++) {
-        const Vec3 delta_x = particles.x(j) - x1;
-        const double length = ArrayUtils::L2Norm(delta_x);
-        const double scale = m1 * particles.m(j) / (length * length * length);
-        f = f + scale * delta_x;
-    }
-    return f;
-}
-
 void CalculateF(ParticleContainer &particles) {
+    for (auto p : particles) {
+        p.SetOldF(p.f());
+        p.SetF(Vec3{});
+    }
+
     for (auto p1 : particles) {
-        const double m1 = p1.m();
         const Vec3 x1 = p1.x();
+        const double m1 = p1.m();
+        Vec3 f1{};
 
-        const auto i = p1.index();
-
-        auto f_acting_on_1 = AddForces(particles, 0, i, x1, m1, Vec3{});
-        f_acting_on_1 = AddForces(particles, i + 1, particles.size(), x1, m1, f_acting_on_1);
-
-        p1.SetOldF(p1.f());
-        p1.SetF(f_acting_on_1);
+        INDEPENDENT_ITERATIONS
+        for (std::size_t j = p1.index() + 1; j < particles.size(); j++) {
+            const Vec3 delta_x = particles.x(j) - x1;
+            const double length = ArrayUtils::L2Norm(delta_x);
+            const Vec3 f_ij = (m1 * particles.m(j) / (length * length * length)) * delta_x;
+            f1 = f1 + f_ij;
+            particles.SetF(j, particles.f(j) - f_ij);
+        }
+        p1.SetF(p1.f() + f1);
     }
 }
 
