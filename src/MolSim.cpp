@@ -40,18 +40,34 @@ void CalculateV(ParticleContainer &particles);
 void PlotParticles(ParticleContainer &particles, int iteration);
 
 constexpr double kStartTime = 0;
-constexpr double kEndTime = 1000;
 // constexpr double end_time = 0.014 * 10;
+double kEndTime = 1000;
 
-constexpr double kDeltaT = 0.014;
+double kDeltaT = 0.014;
 
 int main(int argc, char *argsv[]) {
     std::cout << "Hello from MolSim for PSE!" << std::endl;
-    if (argc != 2) {
-        std::cout << "Erroneous programme call! " << std::endl;
-        std::cout << "./molsym filename" << std::endl;
+    if (argc != 2 && argc != 4) {
+        std::cout << "Erroneous programme call! Usage:\n "
+                << "./MolSim filename deltaT endTime\nor\n" 
+                << "./MolSim filename" << std::endl;
+        return 1;
     }
     ParticleContainer particles;
+
+    //reinitialize only upon provided replacement values
+    if(argc == 4){
+        try {
+            kDeltaT = std::stod(argsv[2]);
+            kEndTime = std::stod(argsv[3]);
+        }
+        catch (const std::exception& e) {
+            std::cerr << "Invalid arguments for deltaT and/or endTime" << "\n";
+            return 1;
+        }
+    }
+
+
 
     FileReader file_reader;
     file_reader.ReadFile(particles, argsv[1]);
