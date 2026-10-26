@@ -7,28 +7,35 @@
 
 ## Build without VTK
 ```bash
-mkdir build && cd build
-cmake ..
-make
+cmake -S . -B build
+cmake --build build -j
 ```
 ## Options 
+
+| Option                 | Effect                             |
+|------------------------|------------------------------------|
+| -DENABLE_VTK_OUTPUT=ON | generate VTK files in `output/vtk` |
+| -DENABLE_DOXYGEN=ON    | generate documentation             |
+
 run instead with additional option `-DENABLE_VTK_OUTPUT=ON` to generate VTK files in `output/vtk`
 ```bash
 cmake -S . -B build -DENABLE_VTK_OUTPUT=ON
+cmake --build build -j
 ```
 or with option `-DENABLE_DOXYGEN=ON` to generate documentation
 ```bash
 cmake -S . -B build -DENABLE_DOXYGEN=ON
+cmake --build build -j
 ```
 
 ## Run with standard arguments of deltaT and end time
 ```bash
-./MolSim ../input/eingabe-sonne.txt
+./build/MolSim ../input/eingabe-sonne.txt
 ```
 ## Run with custom arguments of deltaT and end time
 ```bash
-./MolSim ../input/eingabe-sonne.txt deltaT endTime
+./build/MolSim ../input/eingabe-sonne.txt deltaT endTime
 ```
 
 ## Results
-results are contained in the folder `output`
+results are contained in the folder `build/output`
