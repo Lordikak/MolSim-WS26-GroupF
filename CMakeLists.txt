@@ -26,6 +26,8 @@ file(GLOB_RECURSE MY_SRC
 # create make target
 add_executable(MolSim ${MY_SRC})
 
+target_include_directories(MolSim SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/external)
+
 target_include_directories(MolSim
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src
