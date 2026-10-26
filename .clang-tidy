@@ -1,4 +1,5 @@
-Checks: '-*,readability-identifier-naming'
+Checks: '-*,readability-identifier-naming,clang-diagnostic-*,misc-unused-*'
+ExtraArgs: ['-Wall', '-Wextra', '-Wunused-exception-parameter']
 CheckOptions:
   readability-identifier-naming.ClassCase: CamelCase
   readability-identifier-naming.StructCase: CamelCase
