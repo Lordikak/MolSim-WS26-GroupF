@@ -46,7 +46,7 @@ class ParticleRef {
     void SetF(const Vec3 &f) { container_.get().SetF(index_, f); }  ///< Sets Current Force
     void SetOldF(const Vec3 &old_f) {
         container_.get().SetOldF(index_, old_f);
-    }                                                                         ///< Sets old Force
+    }  ///< Sets old Force
     void SetM(const double m) { container_.get().SetM(index_, m); }           ///< Sets Mass
     void SetType(const int type) { container_.get().SetType(index_, type); }  ///< Set Type tag
     /// @}
@@ -168,10 +168,14 @@ class ParticleContainer {
     void SetF(const std::size_t i, const Vec3 &f) { f_.set(i, f); }  ///< Set force of particle i
     void SetOldF(const std::size_t i, const Vec3 &old_f) {
         old_f_.set(i, old_f);
-    }                                                              ///< Set old force of particle i
+    }  ///< Set old force of particle i
     void SetM(const std::size_t i, const double m) { m_[i] = m; }  ///< Set mass of particle i
     void SetType(const std::size_t i, const int type) {
         type_[i] = type;
     }  ///< Set type of particle i
     /// @}
+
+    [[nodiscard]] ParticleRef<ParticleContainer> getParitcleByIndex(std::size_t i) {
+        return ParticleRef<ParticleContainer>(*this, i);
+    };
 };

@@ -88,18 +88,15 @@ int main(int argc, char *argsv[]) {
 
     // for this loop, we assume: current x, current f and current v are known
     while (current_time < end_time) {
-        // calculate new x
         CalculateX(particles, delta_t);
-        // calculate new f
         CalculateF(particles);
-        // calculate new v
         CalculateV(particles, delta_t);
 
         iteration++;
         if (iteration % 10 == 0) {
             PlotParticles(particles, iteration);
         }
-        std::cout << "Iteration " << iteration << " finished." << std::endl;
+        std::cout << "Iteration " << iteration << " finished.\n";
 
         current_time += delta_t;
     }
@@ -130,22 +127,28 @@ void CalculateF(ParticleContainer &particles) {
         p.SetF(Vec3{});
     }
 
-    for (auto p1 : particles) {
-        const Vec3 x1 = p1.x();
-        const double m1 = p1.m();
+    for (auto p_i : particles) {
+        const Vec3 x_i = p_i.x();
+        const double m_i = p_i.m();
         Vec3 f1{};
 
         // Safe because every j > i is visited once per i. F_j is written so the write locations
         // dont overlap and only reads the Force it writes to in the same iteration
         INDEPENDENT_ITERATIONS
-        for (std::size_t j = p1.index() + 1; j < particles.size(); j++) {
-            const Vec3 delta_x = particles.x(j) - x1;
+        for (std::size_t j = p_i.index() + 1; j < particles.size(); j++) {
+            auto p_j = particles.getParitcleByIndex(j);
+            const Vec3 x_j = p_j.x();
+            const double m_j = p_j.m();
+
+            const Vec3 delta_x = x_j - x_i;
             const double length = ArrayUtils::L2Norm(delta_x);
-            const Vec3 f_ij = (m1 * particles.m(j) / (length * length * length)) * delta_x;
-            f1 = f1 + f_ij;
-            particles.SetF(j, particles.f(j) - f_ij);
+
+            const Vec3 f_ij = (m_i * m_j / (length * length * length)) * delta_x;
+
+            p_i.SetF(p_i.f() + f_ij);
+            // newton 3rd law
+            p_j.SetF(p_j.f() - f_ij);
         }
-        p1.SetF(p1.f() + f1);
     }
 }
 
