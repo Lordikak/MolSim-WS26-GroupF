@@ -121,7 +121,7 @@ void CalculateX(ParticleContainer &particles, const double delta_t) {
  * @param particles particles to compute the forces for
  */
 void CalculateF(ParticleContainer &particles) {
-    // Write the forces for the last step.
+    // store old force in old_f and reset it, as it is calculated in the next step
     for (auto p : particles) {
         p.SetOldF(p.f());
         p.SetF(Vec3{});
@@ -130,7 +130,6 @@ void CalculateF(ParticleContainer &particles) {
     for (auto p_i : particles) {
         const Vec3 x_i = p_i.x();
         const double m_i = p_i.m();
-        Vec3 f1{};
 
         // Safe because every j > i is visited once per i. F_j is written so the write locations
         // dont overlap and only reads the Force it writes to in the same iteration
