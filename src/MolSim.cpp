@@ -1,4 +1,5 @@
 
+#include <CLI11/CLI11.hpp>
 #include <cmath>
 #include <filesystem>
 #include <iostream>
@@ -8,23 +9,6 @@
 #include "outputWriter/VTKWriter.h"
 #include "outputWriter/XYZWriter.h"
 #include "utils/ArrayUtils.h"
-#include "../external/CLI11/CLI11.hpp"
-
-/**
- * @brief Promises the compiler that iterations in the loop are independent from each other
- *
- * Place it directly before a loop, it allows vectorizing loops the compiler cant prove independent
- * iterations for.
- *
- * Also allows reordering of floating point sums inside the loop when using clang.
- */
-#if defined(__clang__)
-#define INDEPENDENT_ITERATIONS _Pragma("clang loop vectorize(assume_safety)")
-#elif defined(__GNUC__)
-#define INDEPENDENT_ITERATIONS _Pragma("GCC ivdep")
-#else
-#define INDEPENDENT_ITERATIONS
-#endif
 
 /**** forward declaration of the calculation functions ****/
 
@@ -51,8 +35,8 @@ void PlotParticles(ParticleContainer &particles, int iteration);
 constexpr double kStartTime = 0;
 
 int main(int argc, char *argsv[]) {
-    //declaration and intialization with default values
-    //replaced if program is run with optional inputs
+    // declaration and intialization with default values
+    // replaced if program is run with optional inputs
     double delta_t = 0.014;
     double end_time = 1000;
 
@@ -60,31 +44,25 @@ int main(int argc, char *argsv[]) {
     ParticleContainer particles;
     std::string file_path;
 
-    //parse command line inputs with CLI 11
+    // parse command line inputs with CLI 11
     CLI::App app("Optional argument parser");
 
-    //optional arguments for delta T and end time, provided with default values
-    app.add_option("file", file_path, "Input File")
-                    ->required()
-                    ->check(CLI::ExistingFile);
+    // optional arguments for delta T and end time, provided with default values
+    app.add_option("file", file_path, "Input File")->required()->check(CLI::ExistingFile);
 
-    app.add_option("--dt", delta_t, "K DeltaT")
-                    ->check(CLI::PositiveNumber);
-    app.add_option("--end", end_time, "End Time")
-                    ->check(CLI::PositiveNumber);
+    app.add_option("--dt", delta_t, "K DeltaT")->check(CLI::PositiveNumber);
+    app.add_option("--end", end_time, "End Time")->check(CLI::PositiveNumber);
 
-    //parse with library functions
-    try
-    {
+    // parse with library functions
+    try {
         CLI11_PARSE(app, argc, argsv);
-    }
-    catch(const CLI::ParseError& e)
-    {
+    } catch (const CLI::ParseError &_) {
         std::cerr << "Error parsing inputs. Usage:\n"
-                    << "./MolSim filepath\n"
-                    << "additional options:\n"
-                    <<"--dt double: define a positive double value as the delta T for simulation\n"
-                    <<"--end endtime: define a positive double value as the end time for simulation" << std::endl;
+                  << "./MolSim filepath\n"
+                  << "additional options:\n"
+                  << "--dt double: define a positive double value as the delta T for simulation\n"
+                  << "--end endtime: define a positive double value as the end time for simulation"
+                  << std::endl;
         return 1;
     }
 
@@ -142,28 +120,11 @@ void CalculateF(ParticleContainer &particles) {
         p.SetF(Vec3{});
     }
 
-    for (auto p_i : particles) {
-        const Vec3 x_i = p_i.x();
-        const double m_i = p_i.m();
-
-        // Safe because every j > i is visited once per i. F_j is written so the write locations
-        // dont overlap and only reads the Force it writes to in the same iteration
-        INDEPENDENT_ITERATIONS
-        for (std::size_t j = p_i.index() + 1; j < particles.size(); j++) {
-            auto p_j = particles.getParitcleByIndex(j);
-            const Vec3 x_j = p_j.x();
-            const double m_j = p_j.m();
-
-            const Vec3 delta_x = x_j - x_i;
-            const double length = ArrayUtils::L2Norm(delta_x);
-
-            const Vec3 f_ij = (m_i * m_j / (length * length * length)) * delta_x;
-
-            p_i.SetF(p_i.f() + f_ij);
-            // newton 3rd law
-            p_j.SetF(p_j.f() - f_ij);
-        }
-    }
+    particles.ApplyPairForces([](auto p_i, auto p_j) {
+        const Vec3 delta_x = p_j.x() - p_i.x();
+        const double length = ArrayUtils::L2Norm(delta_x);
+        return (p_i.m() * p_j.m() / (length * length * length)) * delta_x;
+    });
 }
 
 void CalculateV(ParticleContainer &particles, const double delta_t) {

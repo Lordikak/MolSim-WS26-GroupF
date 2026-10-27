@@ -1,5 +1,6 @@
 Checks: '-*,readability-identifier-naming,clang-diagnostic-*,misc-unused-*'
 ExtraArgs: ['-Wall', '-Wextra', '-Wunused-exception-parameter']
+HeaderFilterRegex: '.*/src/.*'
 CheckOptions:
   readability-identifier-naming.ClassCase: CamelCase
   readability-identifier-naming.StructCase: CamelCase

@@ -9,6 +9,7 @@
 #ifdef ENABLE_VTK_OUTPUT
 
 #include <string>
+
 #include "ParticleContainer.h"
 
 namespace output_writer {

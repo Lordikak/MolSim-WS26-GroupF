@@ -7,10 +7,9 @@
 
 #pragma once
 
-#include "ParticleContainer.h"
 #include <string>
 
-
+#include "ParticleContainer.h"
 
 class FileReader {
    public:
