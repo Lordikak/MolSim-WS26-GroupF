@@ -7,11 +7,11 @@
 
 #include "FileReader.h"
 
-#include <string>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <string>
 
 #include "ParticleContainer.h"
 

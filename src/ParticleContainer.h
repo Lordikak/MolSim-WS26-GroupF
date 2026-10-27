@@ -1,7 +1,24 @@
 #pragma once
+#include <type_traits>
 #include <vector>
 
 #include "utils/Vec3.h"
+
+/**
+ * @brief Promises the compiler that iterations in the loop are independent from each other
+ *
+ * Place it directly before a loop, it allows vectorizing loops the compiler cant prove independent
+ * iterations for.
+ *
+ * Also allows reordering of floating point sums inside the loop when using clang.
+ */
+#if defined(__clang__)
+#define INDEPENDENT_ITERATIONS _Pragma("clang loop vectorize(assume_safety)")
+#elif defined(__GNUC__)
+#define INDEPENDENT_ITERATIONS _Pragma("GCC ivdep")
+#else
+#define INDEPENDENT_ITERATIONS
+#endif
 
 /**
  * @brief Handle to a Single Particle in the Container
@@ -175,7 +192,47 @@ class ParticleContainer {
     }  ///< Set type of particle i
     /// @}
 
-    [[nodiscard]] ParticleRef<ParticleContainer> getParitcleByIndex(std::size_t i) {
-        return ParticleRef<ParticleContainer>(*this, i);
-    };
+    /**
+     * @brief Applies pairwise forces between all particles
+     *
+     * Calls the @p kernel once per unordered pair (i, j) with i < j, applying to both using
+     * Newtons third law F_ij = -F_ji
+     *
+     * Forces are accumulated into current values of f, old f is not written. Call this after
+     * resetting f to zero (potentially saving to old f)
+     *
+     * The inner loop is vectorized
+     *
+     * @warning The kernel must not have side effects and MUST NOT READ f(), that results in
+     * potentially undefined behaviour because the values are written during the loop and the
+     * compiler gets the independence promise
+     *
+     * @tparam Kernel Callable with signature
+     * `Vec3(ParticleRef<const ParticleContainer> p_i, ParticleRef<const ParticleContainer> p_j)`
+     *
+     * @param kernel Returns the force acting on @p p_i by @p p_j
+     */
+    template <class Kernel>
+        requires std::is_invocable_r_v<Vec3, Kernel, ParticleRef<const ParticleContainer>,
+                                       ParticleRef<const ParticleContainer>>
+    void ApplyPairForces(Kernel kernel) {
+        const std::size_t n = size();
+        for (std::size_t i = 0; i < n; ++i) {
+            const ParticleRef<const ParticleContainer> p_i(*this, i);
+            Vec3 f_i{};
+
+            // Safe because every j > i is visited once per i. F_j is written so the write locations
+            // dont overlap and only reads the Force it writes to in the same iteration
+            INDEPENDENT_ITERATIONS
+            for (std::size_t j = i + 1; j < n; j++) {
+                const ParticleRef<const ParticleContainer> p_j(*this, j);
+                const Vec3 f_ij = kernel(p_i, p_j);
+                f_i = f_i + f_ij;
+                f_.set(j, f_.get(j) - f_ij);
+            }
+            f_.set(i, f_.get(i) + f_i);
+        }
+    }
 };
+
+#undef INDEPENDENT_ITERATIONS
