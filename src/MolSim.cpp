@@ -8,6 +8,7 @@
 #include "outputWriter/VTKWriter.h"
 #include "outputWriter/XYZWriter.h"
 #include "utils/ArrayUtils.h"
+#include "../external/CLI11/CLI11.hpp"
 
 /**
  * @brief Promises the compiler that iterations in the loop are independent from each other
@@ -50,31 +51,42 @@ void PlotParticles(ParticleContainer &particles, int iteration);
 constexpr double kStartTime = 0;
 
 int main(int argc, char *argsv[]) {
+    //declaration and intialization with default values
+    //replaced if program is run with optional inputs
     double delta_t = 0.014;
     double end_time = 1000;
 
     std::cout << "Hello from MolSim for PSE!" << std::endl;
-    if (argc != 2 && argc != 4) {
-        std::cout << "Erroneous programme call! Usage:\n "
-                  << "./MolSim filename deltaT endTime\nor\n"
-                  << "./MolSim filename" << std::endl;
-        return 1;
-    }
     ParticleContainer particles;
+    std::string file_path;
 
-    // reinitialize only upon provided replacement values
-    if (argc == 4) {
-        try {
-            delta_t = std::stod(argsv[2]);
-            end_time = std::stod(argsv[3]);
-        } catch (const std::exception &_) {
-            std::cerr << "Invalid arguments for deltaT and/or endTime" << "\n";
-            return 1;
-        }
+    //parse command line inputs with CLI 11
+    CLI::App app("Optional argument parser");
+
+    //optional arguments for delta T and end time, provided with default values
+    app.add_option("file", file_path, "Input File")
+                    ->required();
+
+    app.add_option("--dt", delta_t, "K DeltaT");
+    app.add_option("--end", end_time, "End Time");
+
+    //parse with library functions
+    try
+    {
+        CLI11_PARSE(app, argc, argsv);
+    }
+    catch(const CLI::ParseError& e)
+    {
+        std::cerr << "Error parsing inputs. Usage:\n"
+                    << "./MolSim filepath\n"
+                    << "additional options:\n"
+                    <<"--dt double: define a double value as the delta T for simulation\n"
+                    <<"--end endtime: define a double value as the end time for simulation" << std::endl;
+        return 1;
     }
 
     FileReader file_reader;
-    file_reader.ReadFile(particles, argsv[1]);
+    file_reader.ReadFile(particles, file_path);
 
     // reset ouput folder
     std::filesystem::remove_all("output");

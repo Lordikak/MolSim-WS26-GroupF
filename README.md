@@ -30,11 +30,11 @@ cmake --build build -j
 
 ## Run with standard arguments of deltaT and end time
 ```bash
-./build/MolSim ../input/eingabe-sonne.txt
+./build/MolSim input/eingabe-sonne.txt
 ```
 ## Run with custom arguments of deltaT and end time
 ```bash
-./build/MolSim ../input/eingabe-sonne.txt deltaT endTime
+./build/MolSim input/eingabe-sonne.txt deltaT endTime
 ```
 
 ## Results

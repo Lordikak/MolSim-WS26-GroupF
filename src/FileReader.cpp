@@ -7,6 +7,7 @@
 
 #include "FileReader.h"
 
+#include <string>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -18,7 +19,7 @@ FileReader::FileReader() = default;
 
 FileReader::~FileReader() = default;
 
-void FileReader::ReadFile(ParticleContainer &particles, char *filename) {
+void FileReader::ReadFile(ParticleContainer &particles, const std::string &filename) {
     if (std::ifstream input_file(filename); input_file.is_open()) {
         Vec3 x{};
         Vec3 v{};
