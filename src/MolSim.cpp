@@ -9,6 +9,14 @@
 #include "outputWriter/XYZWriter.h"
 #include "utils/ArrayUtils.h"
 
+/**
+ * @brief Promises the compiler that iterations in the loop are independent from each other
+ *
+ * Place it directly before a loop, it allows vectorizing loops the compiler cant prove independent
+ * iterations for.
+ *
+ * Also allows reordering of floating point sums inside the loop when using clang.
+ */
 #if defined(__clang__)
 #define INDEPENDENT_ITERATIONS _Pragma("clang loop vectorize(assume_safety)")
 #elif defined(__GNUC__)
@@ -27,12 +35,12 @@ void CalculateF(ParticleContainer &particles);
 /**
  * calculate the position for all particles
  */
-void CalculateX(ParticleContainer &particles);
+void CalculateX(ParticleContainer &particles, double delta_t);
 
 /**
  * calculate the position for all particles
  */
-void CalculateV(ParticleContainer &particles);
+void CalculateV(ParticleContainer &particles, double delta_t);
 
 /**
  * plot the particles to a xyz-file
@@ -40,34 +48,30 @@ void CalculateV(ParticleContainer &particles);
 void PlotParticles(ParticleContainer &particles, int iteration);
 
 constexpr double kStartTime = 0;
-// constexpr double end_time = 0.014 * 10;
-double kEndTime = 1000;
-
-double kDeltaT = 0.014;
 
 int main(int argc, char *argsv[]) {
+    double delta_t = 0.014;
+    double end_time = 1000;
+
     std::cout << "Hello from MolSim for PSE!" << std::endl;
     if (argc != 2 && argc != 4) {
         std::cout << "Erroneous programme call! Usage:\n "
-                << "./MolSim filename deltaT endTime\nor\n" 
-                << "./MolSim filename" << std::endl;
+                  << "./MolSim filename deltaT endTime\nor\n"
+                  << "./MolSim filename" << std::endl;
         return 1;
     }
     ParticleContainer particles;
 
-    //reinitialize only upon provided replacement values
-    if(argc == 4){
+    // reinitialize only upon provided replacement values
+    if (argc == 4) {
         try {
-            kDeltaT = std::stod(argsv[2]);
-            kEndTime = std::stod(argsv[3]);
-        }
-        catch (const std::exception& e) {
+            delta_t = std::stod(argsv[2]);
+            end_time = std::stod(argsv[3]);
+        } catch (const std::exception &_) {
             std::cerr << "Invalid arguments for deltaT and/or endTime" << "\n";
             return 1;
         }
     }
-
-
 
     FileReader file_reader;
     file_reader.ReadFile(particles, argsv[1]);
@@ -83,13 +87,13 @@ int main(int argc, char *argsv[]) {
     int iteration = 0;
 
     // for this loop, we assume: current x, current f and current v are known
-    while (current_time < kEndTime) {
+    while (current_time < end_time) {
         // calculate new x
-        CalculateX(particles);
+        CalculateX(particles, delta_t);
         // calculate new f
         CalculateF(particles);
         // calculate new v
-        CalculateV(particles);
+        CalculateV(particles, delta_t);
 
         iteration++;
         if (iteration % 10 == 0) {
@@ -97,20 +101,30 @@ int main(int argc, char *argsv[]) {
         }
         std::cout << "Iteration " << iteration << " finished." << std::endl;
 
-        current_time += kDeltaT;
+        current_time += delta_t;
     }
 
     std::cout << "output written. Terminating..." << std::endl;
     return 0;
 }
 
-void CalculateX(ParticleContainer &particles) {
+void CalculateX(ParticleContainer &particles, const double delta_t) {
     for (auto p : particles) {
-        p.SetX(p.x() + kDeltaT * p.v() + (kDeltaT * kDeltaT / (2 * p.m())) * p.f());
+        p.SetX(p.x() + delta_t * p.v() + (delta_t * delta_t / (2 * p.m())) * p.f());
     }
 }
 
+/**
+ * @brief Computes gravitational force for every particle
+ *
+ * F_ij = m_i * m_j / |x_i - x_j|^3 * (x_j - x_i)
+ * computed once per pair and then applies to both using newtons third law: F_ij = - F_ji
+ * which halves the work
+ *
+ * @param particles particles to compute the forces for
+ */
 void CalculateF(ParticleContainer &particles) {
+    // Write the forces for the last step.
     for (auto p : particles) {
         p.SetOldF(p.f());
         p.SetF(Vec3{});
@@ -121,6 +135,8 @@ void CalculateF(ParticleContainer &particles) {
         const double m1 = p1.m();
         Vec3 f1{};
 
+        // Safe because every j > i is visited once per i. F_j is written so the write locations
+        // dont overlap and only reads the Force it writes to in the same iteration
         INDEPENDENT_ITERATIONS
         for (std::size_t j = p1.index() + 1; j < particles.size(); j++) {
             const Vec3 delta_x = particles.x(j) - x1;
@@ -133,9 +149,9 @@ void CalculateF(ParticleContainer &particles) {
     }
 }
 
-void CalculateV(ParticleContainer &particles) {
+void CalculateV(ParticleContainer &particles, const double delta_t) {
     for (auto p : particles) {
-        p.SetV(p.v() + kDeltaT * (p.f() + p.old_f()) / (2 * p.m()));
+        p.SetV(p.v() + delta_t * (p.f() + p.old_f()) / (2 * p.m()));
     }
 }
 
