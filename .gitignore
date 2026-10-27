@@ -42,3 +42,6 @@
 
 # testing stuff
 quickbuild.sh
+
+# forcebench result file
+forcebench/results.csv

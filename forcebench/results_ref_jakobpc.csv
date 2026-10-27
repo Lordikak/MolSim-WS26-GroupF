@@ -1,0 +1,29 @@
+compiler,flags,variant,ns_per_n2
+g++,-O3,original,2.285
+g++,-O3 -march=native,original,2.260
+clang++,-O3,original,2.257
+clang++,-O3 -march=native,original,2.313
+g++,-O3,arrayutils_before_fix,22.911
+g++,-O3 -march=native,arrayutils_before_fix,22.530
+clang++,-O3,arrayutils_before_fix,2.288
+clang++,-O3 -march=native,arrayutils_before_fix,2.249
+g++,-O3,soa_vectorized_all_pairs,1.329
+g++,-O3 -march=native,soa_vectorized_all_pairs,1.117
+clang++,-O3,soa_vectorized_all_pairs,2.227
+clang++,-O3 -march=native,soa_vectorized_all_pairs,2.236
+g++,-O3,soa_newton3_scalar,1.225
+g++,-O3 -march=native,soa_newton3_scalar,1.198
+clang++,-O3,soa_newton3_scalar,1.215
+clang++,-O3 -march=native,soa_newton3_scalar,1.188
+g++,-O3,soa_newton3_diagonal,0.728
+g++,-O3 -march=native,soa_newton3_diagonal,0.616
+clang++,-O3,soa_newton3_diagonal,0.718
+clang++,-O3 -march=native,soa_newton3_diagonal,0.606
+g++,-O3,aos_newton3_macro,1.130
+g++,-O3 -march=native,aos_newton3_macro,1.144
+clang++,-O3,aos_newton3_macro,1.181
+clang++,-O3 -march=native,aos_newton3_macro,1.144
+g++,-O3,submitted,0.865
+g++,-O3 -march=native,submitted,0.677
+clang++,-O3,submitted,0.628
+clang++,-O3 -march=native,submitted,0.577
