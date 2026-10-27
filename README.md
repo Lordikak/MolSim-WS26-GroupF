@@ -14,18 +14,21 @@ cmake --build build -j
 
 | Option                 | Effect                             |
 |------------------------|------------------------------------|
-| -DENABLE_VTK_OUTPUT=ON | generate VTK files in `output/vtk` |
-| -DENABLE_DOXYGEN=ON    | generate documentation             |
+| -DENABLE_VTK_OUTPUT=ON | generate VTK files in `output/VTK` |
+| -DENABLE_DOXYGEN=OFF   | dont create the doc_doxygen target |
 
-run instead with additional option `-DENABLE_VTK_OUTPUT=ON` to generate VTK files in `output/vtk`
+run instead with additional option `-DENABLE_VTK_OUTPUT=ON` to generate VTK files in `output/VTK`
 ```bash
 cmake -S . -B build -DENABLE_VTK_OUTPUT=ON
 cmake --build build -j
 ```
-or with option `-DENABLE_DOXYGEN=ON` to generate documentation
+
+## Documentation
+
+Generate the Doxygen documentation into `build/html` (open `build/html/index.html`)
 ```bash
-cmake -S . -B build -DENABLE_DOXYGEN=ON
-cmake --build build -j
+cmake -S . -B build
+cmake --build build --target doc_doxygen
 ```
 
 ## Run with standard arguments of deltaT and end time
