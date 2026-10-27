@@ -65,10 +65,13 @@ int main(int argc, char *argsv[]) {
 
     //optional arguments for delta T and end time, provided with default values
     app.add_option("file", file_path, "Input File")
-                    ->required();
+                    ->required()
+                    ->check(CLI::ExistingFile);
 
-    app.add_option("--dt", delta_t, "K DeltaT");
-    app.add_option("--end", end_time, "End Time");
+    app.add_option("--dt", delta_t, "K DeltaT")
+                    ->check(CLI::PositiveNumber);
+    app.add_option("--end", end_time, "End Time")
+                    ->check(CLI::PositiveNumber);
 
     //parse with library functions
     try
@@ -80,8 +83,8 @@ int main(int argc, char *argsv[]) {
         std::cerr << "Error parsing inputs. Usage:\n"
                     << "./MolSim filepath\n"
                     << "additional options:\n"
-                    <<"--dt double: define a double value as the delta T for simulation\n"
-                    <<"--end endtime: define a double value as the end time for simulation" << std::endl;
+                    <<"--dt double: define a positive double value as the delta T for simulation\n"
+                    <<"--end endtime: define a positive double value as the end time for simulation" << std::endl;
         return 1;
     }
 

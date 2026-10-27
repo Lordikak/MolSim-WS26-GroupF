@@ -34,8 +34,8 @@ cmake --build build -j
 ```
 ## Run with custom arguments of deltaT and end time
 ```bash
-./build/MolSim input/eingabe-sonne.txt deltaT endTime
+./build/MolSim input/eingabe-sonne.txt --dt <deltaT> --end <endTime>
 ```
 
 ## Results
-results are contained in the folder `build/output`
+results are contained in the folder `output`
