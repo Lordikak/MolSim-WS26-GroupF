@@ -6,25 +6,8 @@
 #include <set>
 
 #include "FileReader.h"
+#include "Simulation.h"
 #include "outputWriter/OutputWriter.h"
-#include "utils/ArrayUtils.h"
-
-/**** forward declaration of the calculation functions ****/
-
-/**
- * calculate the force for all particles
- */
-void CalculateF(ParticleContainer &particles);
-
-/**
- * calculate the position for all particles
- */
-void CalculateX(ParticleContainer &particles, double delta_t);
-
-/**
- * calculate the position for all particles
- */
-void CalculateV(ParticleContainer &particles, double delta_t);
 
 /**
  * @brief Uses @p writers to write the particles to files
@@ -113,24 +96,14 @@ int main(int argc, char *argsv[]) {
     std::filesystem::create_directories("output/VTK");
     std::filesystem::create_directories("output/VTK_ASCII");
 
-    double current_time = kStartTime;
-
-    int iteration = 0;
-
-    // for this loop, we assume: current x, current f and current v are known
-    while (current_time < end_time) {
-        CalculateX(particles, delta_t);
-        CalculateF(particles);
-        CalculateV(particles, delta_t);
-
-        iteration++;
-        if (iteration % 10 == 0) {
-            PlotParticles(particles, writers, iteration);
-        }
-        std::cout << "Iteration " << iteration << " finished.\n";
-
-        current_time += delta_t;
-    }
+    simulation::RunSimulation(
+        particles, {kStartTime, end_time, delta_t},
+        [&writers](const ParticleContainer &p, const int iteration, const double time) {
+            if (iteration % 10 == 0) {
+                PlotParticles(p, writers, iteration);
+            }
+            std::cout << "Iteration " << iteration << " finished.\n";
+        });
 
     std::cout << "output written. Terminating..." << std::endl;
     return 0;
