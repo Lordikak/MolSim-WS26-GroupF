@@ -24,6 +24,10 @@ class VTKWriter final : public OutputWriter {
     std::string prefix_;
 
    public:
+    /**
+     * @brief Creates a VTK writer
+     * @param prefix File name prefix, files get named: `<prefix>_<iteration>.<extension>`
+     */
     explicit VTKWriter(std::string prefix) : prefix_(std::move(prefix)) {}
 
     // Delete copy constructor and assignment operator

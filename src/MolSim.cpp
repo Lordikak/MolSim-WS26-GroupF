@@ -28,7 +28,10 @@ void CalculateX(ParticleContainer &particles, double delta_t);
 void CalculateV(ParticleContainer &particles, double delta_t);
 
 /**
- * plot the particles to a xyz-file
+ * @brief Uses @p writers to write the particles to files
+ * @param particles Particles to write
+ * @param writers Writers to write the particles
+ * @param iteration Iteration, used for file name
  */
 void PlotParticles(const ParticleContainer &particles,
                    const std::vector<std::unique_ptr<output_writer::OutputWriter>> &writers,
