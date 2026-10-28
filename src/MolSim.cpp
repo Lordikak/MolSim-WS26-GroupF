@@ -30,10 +30,10 @@ int main(int argc, char *argsv[]) {
     std::string file_path;
 
     const std::map<std::string, output_writer::OutputFormat> format_names{
-        {"xyz", output_writer::OutputFormat::XYZ},
+        {"xyz", output_writer::OutputFormat::kXyz},
 #ifdef ENABLE_VTK_OUTPUT
-        {"vtk", output_writer::OutputFormat::VTK},
-        {"vtka", output_writer::OutputFormat::VTK_ASCII},
+        {"vtk", output_writer::OutputFormat::kVtk},
+        {"vtka", output_writer::OutputFormat::kVtkAscii},
 #endif
     };
     std::string format_list;
@@ -79,7 +79,7 @@ int main(int argc, char *argsv[]) {
 
     // Add default writers
     if (output_formats.empty()) {
-        output_formats.push_back(output_writer::OutputFormat::XYZ);
+        output_formats.push_back(output_writer::OutputFormat::kXyz);
     }
 
     // Create Writers

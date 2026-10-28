@@ -9,10 +9,10 @@ namespace output_writer {
  * @brief Formats for outputs the simulation can export
  */
 enum class OutputFormat {
-    XYZ,  ///< Plain text XYZ file, only contains Positions
+    kXyz,  ///< Plain text XYZ file, only contains Positions
 #ifdef ENABLE_VTK_OUTPUT
-    VTK,        ///< VTK unstructured file (.vtu)
-    VTK_ASCII,  ///< VTK unstructured file (.vtu) as ascii rep
+    kVtk,       ///< VTK unstructured file (.vtu)
+    kVtkAscii,  ///< VTK unstructured file (.vtu) as ascii rep
 #endif
 };
 

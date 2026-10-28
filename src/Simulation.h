@@ -5,12 +5,12 @@
 
 namespace simulation {
 struct SimulationSettings {
-    double startTime;
-    double endTime;
-    double deltaT;
+    double start_time;
+    double end_time;
+    double delta_t;
 };
 
 void RunSimulation(
-    ParticleContainer &particles, const struct SimulationSettings settings,
+    ParticleContainer &particles, const SimulationSettings settings,
     const std::function<void(const ParticleContainer &, int, double)> &post_iteration);
 }  // namespace simulation
