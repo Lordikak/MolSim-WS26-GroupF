@@ -134,6 +134,7 @@ class ParticleContainer {
    public:
     /// @name Iteration
     /// @{
+
     /// @return Iterator from the first particle
     ParticleIterator<ParticleContainer> begin() { return {*this, 0}; }
     /// @return Iterator past the last particle

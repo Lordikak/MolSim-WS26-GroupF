@@ -19,12 +19,11 @@ void PlotParticles(const ParticleContainer &particles,
                    const std::vector<std::unique_ptr<output_writer::OutputWriter>> &writers,
                    int iteration);
 
-constexpr double kStartTime = 0;
-
 int main(int argc, char *argsv[]) {
     // Set by CLI11
     double delta_t;
     double end_time;
+    double start_time;
 
     ParticleContainer particles;
     std::string file_path;
@@ -55,14 +54,22 @@ int main(int argc, char *argsv[]) {
     app.add_option("--dt", delta_t, "Time step per iteration")
         ->default_val(0.014)
         ->check(CLI::PositiveNumber);
-    app.add_option("--end", end_time, "End Time of the sim")
-        ->default_val(1000.0)
-        ->check(CLI::PositiveNumber);
+    app.add_option("--end", end_time, "End Time of the sim")->default_val(1000.0);
+    app.add_option("--start", start_time, "Start time of the sim")->default_val(0.0);
     std::vector<output_writer::OutputFormat> output_formats;
     app.add_option("--format", output_formats, "Output format")
         ->transform(CLI::CheckedTransformer(format_names, CLI::ignore_case))
         ->delimiter(',')
         ->option_text(format_list);
+
+    app.callback([&] {
+        if (!std::isfinite(start_time) || !std::isfinite(end_time) || !std::isfinite(delta_t)) {
+            throw CLI::ValidationError("--start/--end/--dt", "must be finite numbers");
+        }
+        if (end_time <= start_time) {
+            throw CLI::ValidationError("--end", "must be greater than the start time");
+        }
+    });
 
     app.footer(
         "Example:\n"
@@ -97,7 +104,7 @@ int main(int argc, char *argsv[]) {
     std::filesystem::create_directories("output/VTK_ASCII");
 
     simulation::RunSimulation(
-        particles, {kStartTime, end_time, delta_t},
+        particles, {start_time, end_time, delta_t},
         [&writers](const ParticleContainer &p, const int iteration, const double /*time*/) {
             if (iteration % 10 == 0) {
                 PlotParticles(p, writers, iteration);
