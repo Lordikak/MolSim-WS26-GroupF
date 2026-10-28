@@ -17,7 +17,7 @@ cmake --build build -j
 | -DENABLE_VTK_OUTPUT=ON | generate VTK files in `output/VTK` |
 | -DENABLE_DOXYGEN=OFF   | dont create the doc_doxygen target |
 
-run instead with additional option `-DENABLE_VTK_OUTPUT=ON` to generate VTK files in `output/VTK`
+run instead with additional option `-DENABLE_VTK_OUTPUT=ON` to generate VTK files in `output/VTK` if running with `vtk` format
 ```bash
 cmake -S . -B build -DENABLE_VTK_OUTPUT=ON
 cmake --build build -j
