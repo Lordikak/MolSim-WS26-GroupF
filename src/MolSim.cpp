@@ -1,9 +1,9 @@
 
 #include <CLI11/CLI11.hpp>
-#include <cmath>
 #include <filesystem>
 #include <iostream>
-#include <list>
+#include <ranges>
+#include <set>
 
 #include "FileReader.h"
 #include "outputWriter/VTKWriter.h"
@@ -50,6 +50,14 @@ int main(int argc, char *argsv[]) {
         {"vtk", output_writer::OutputFormat::VTK},
 #endif
     };
+    std::string format_list;
+    for (const auto &name : format_names | std::views::keys) {
+        if (!format_list.empty()) {
+            format_list += ',';
+        }
+        format_list += name;
+    }
+
     std::vector<std::unique_ptr<output_writer::OutputWriter>> writers;
 
     // parse command line inputs with CLI 11
@@ -68,7 +76,7 @@ int main(int argc, char *argsv[]) {
     app.add_option("--format", output_formats, "Output format")
         ->transform(CLI::CheckedTransformer(format_names, CLI::ignore_case))
         ->delimiter(',')
-        ->option_text("xyz,vtk");
+        ->option_text(format_list);
 
     app.footer(
         "Example:\n"
@@ -90,8 +98,9 @@ int main(int argc, char *argsv[]) {
 
     // Create Writers
     const std::string out_name("MD_iteration");
-    for (const auto output_format : output_formats) {
-        writers.push_back(output_writer::OutputWriter::MakeWriter(output_format, out_name));
+    for (const std::set unique_formats(output_formats.begin(), output_formats.end());
+         const auto format : unique_formats) {
+        writers.push_back(output_writer::OutputWriter::MakeWriter(format, out_name));
     }
 
     // reset ouput folder
