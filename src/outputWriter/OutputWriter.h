@@ -11,7 +11,8 @@ namespace output_writer {
 enum class OutputFormat {
     XYZ,  ///< Plain text XYZ file, only contains Positions
 #ifdef ENABLE_VTK_OUTPUT
-    VTK,  ///< VTK unstructured file (.vtu)
+    VTK,        ///< VTK unstructured file (.vtu)
+    VTK_ASCII,  ///< VTK unstructured file (.vtu) as ascii rep
 #endif
 };
 

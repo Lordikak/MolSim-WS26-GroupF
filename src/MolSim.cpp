@@ -51,6 +51,7 @@ int main(int argc, char *argsv[]) {
         {"xyz", output_writer::OutputFormat::XYZ},
 #ifdef ENABLE_VTK_OUTPUT
         {"vtk", output_writer::OutputFormat::VTK},
+        {"vtka", output_writer::OutputFormat::VTK_ASCII},
 #endif
     };
     std::string format_list;
@@ -111,6 +112,7 @@ int main(int argc, char *argsv[]) {
     std::filesystem::create_directories("output");
     std::filesystem::create_directories("output/XYZ");
     std::filesystem::create_directories("output/VTK");
+    std::filesystem::create_directories("output/VTK_ASCII");
 
     double current_time = kStartTime;
 

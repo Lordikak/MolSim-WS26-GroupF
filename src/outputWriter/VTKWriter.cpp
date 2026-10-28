@@ -66,14 +66,16 @@ void VTKWriter::Write(const ParticleContainer &particles, const int iteration) {
 
     // Create filename with iteration number
     std::stringstream strstr;
-    strstr << "output/VTK/" << prefix_ << "_" << std::setfill('0') << std::setw(4) << iteration
+    const std::string output_dir = ascii_ ? "output/VTK_ASCII/" : "output/VTK/";
+    strstr << output_dir << prefix_ << "_" << std::setfill('0') << std::setw(4) << iteration
            << ".vtu";
 
     // Create writer and set data
     const vtkNew<vtkXMLUnstructuredGridWriter> writer;
     writer->SetFileName(strstr.str().c_str());
     writer->SetInputData(grid);
-    writer->SetDataModeToAscii();
+    if (ascii_) writer->SetDataModeToAscii();
+    else writer->SetDataModeToBinary();
 
     // Write the file
     writer->Write();

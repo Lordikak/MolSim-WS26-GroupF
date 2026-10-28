@@ -8,10 +8,12 @@ namespace output_writer {
 std::unique_ptr<OutputWriter> OutputWriter::MakeWriter(OutputFormat format, std::string prefix) {
     switch (format) {
         case OutputFormat::XYZ:
-            return std::make_unique<XYZWriter>(prefix);
+            return std::make_unique<XYZWriter>(std::move(prefix));
 #ifdef ENABLE_VTK_OUTPUT
         case OutputFormat::VTK:
-            return std::make_unique<VTKWriter>(std::move(prefix));
+            return std::make_unique<VTKWriter>(std::move(prefix), false);
+        case OutputFormat::VTK_ASCII:
+            return std::make_unique<VTKWriter>(std::move(prefix), true);
 #endif
     }
     std::abort();  // unreachable

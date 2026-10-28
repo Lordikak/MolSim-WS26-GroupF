@@ -22,13 +22,19 @@ namespace output_writer {
  */
 class VTKWriter final : public OutputWriter {
     std::string prefix_;
+    const bool ascii_;
 
    public:
     /**
      * @brief Creates a VTK writer
+     *
+     * @todo Pass the Output dir from MakeWriter instead of hardcoding
+     *
      * @param prefix File name prefix, files get named: `<prefix>_<iteration>.<extension>`
+     * @param ascii If the file should be written as ascii
      */
-    explicit VTKWriter(std::string prefix) : prefix_(std::move(prefix)) {}
+    explicit VTKWriter(std::string prefix, const bool ascii)
+        : prefix_(std::move(prefix)), ascii_(ascii) {}
 
     // Delete copy constructor and assignment operator
     VTKWriter(const VTKWriter &) = delete;
