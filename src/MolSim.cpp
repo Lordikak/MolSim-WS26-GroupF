@@ -35,36 +35,35 @@ void PlotParticles(ParticleContainer &particles, int iteration);
 constexpr double kStartTime = 0;
 
 int main(int argc, char *argsv[]) {
-    // declaration and intialization with default values
-    // replaced if program is run with optional inputs
-    double delta_t = 0.014;
-    double end_time = 1000;
+    // Set by CLI11
+    double delta_t;
+    double end_time;
 
-    std::cout << "Hello from MolSim for PSE!" << std::endl;
     ParticleContainer particles;
     std::string file_path;
 
     // parse command line inputs with CLI 11
-    CLI::App app("Optional argument parser");
+    CLI::App app("MD simulation");
 
     // optional arguments for delta T and end time, provided with default values
     app.add_option("file", file_path, "Input File")->required()->check(CLI::ExistingFile);
 
-    app.add_option("--dt", delta_t, "K DeltaT")->check(CLI::PositiveNumber);
-    app.add_option("--end", end_time, "End Time")->check(CLI::PositiveNumber);
+    app.add_option("--dt", delta_t, "Time step per iteration")
+        ->default_val(0.014)
+        ->check(CLI::PositiveNumber);
+    app.add_option("--end", end_time, "End Time of the sim")
+        ->default_val(1000.0)
+        ->check(CLI::PositiveNumber);
+
+    app.footer(
+        "Example:\n"
+        "./MolSim input/eingabe-sonne.txt --dt 0.014 --end 1000");
+    app.failure_message(CLI::FailureMessage::help);
 
     // parse with library functions
-    try {
-        CLI11_PARSE(app, argc, argsv);
-    } catch (const CLI::ParseError &_) {
-        std::cerr << "Error parsing inputs. Usage:\n"
-                  << "./MolSim filepath\n"
-                  << "additional options:\n"
-                  << "--dt double: define a positive double value as the delta T for simulation\n"
-                  << "--end endtime: define a positive double value as the end time for simulation"
-                  << std::endl;
-        return 1;
-    }
+    CLI11_PARSE(app, argc, argsv);
+
+    std::cout << "Hello from MolSim for PSE!" << std::endl;
 
     FileReader file_reader;
     file_reader.ReadFile(particles, file_path);
