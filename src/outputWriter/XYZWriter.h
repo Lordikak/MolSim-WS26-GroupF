@@ -8,19 +8,21 @@
 #pragma once
 
 #include <fstream>
+#include <string>
+#include <utility>
 
+#include "OutputWriter.h"
 #include "ParticleContainer.h"
 
 namespace output_writer {
 
-class XYZWriter {
+class XYZWriter final : public OutputWriter {
+    std::string prefix_;
+
    public:
-    XYZWriter();
+    explicit XYZWriter(std::string prefix) : prefix_(std::move(prefix)) {}
 
-    virtual ~XYZWriter();
-
-    void PlotParticles(const ParticleContainer &particles, const std::string &filename,
-                       int iteration);
+    void Write(const ParticleContainer &particles, int iteration) override;
 };
 
 }  // namespace output_writer

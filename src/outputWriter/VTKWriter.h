@@ -9,7 +9,9 @@
 #ifdef ENABLE_VTK_OUTPUT
 
 #include <string>
+#include <utility>
 
+#include "OutputWriter.h"
 #include "ParticleContainer.h"
 
 namespace output_writer {
@@ -18,10 +20,11 @@ namespace output_writer {
  * This class implements the functionality to generate vtk output from
  * particles using the official VTK library.
  */
-class VTKWriter {
+class VTKWriter final : public OutputWriter {
+    std::string prefix_;
+
    public:
-    VTKWriter() = default;
-    ~VTKWriter() = default;
+    explicit VTKWriter(std::string prefix) : prefix_(std::move(prefix)) {}
 
     // Delete copy constructor and assignment operator
     VTKWriter(const VTKWriter &) = delete;
@@ -30,11 +33,9 @@ class VTKWriter {
     /**
      * Write VTK output of particles.
      * @param particles Particles to add to the output
-     * @param filename Output filename
      * @param iteration Current iteration number
      */
-    static void PlotParticles(const ParticleContainer &particles, const std::string &filename,
-                              int iteration);
+    void Write(const ParticleContainer &particles, int iteration) override;
 };
 
 }  // namespace output_writer

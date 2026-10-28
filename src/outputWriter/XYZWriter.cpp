@@ -14,15 +14,10 @@
 
 namespace output_writer {
 
-XYZWriter::XYZWriter() = default;
-
-XYZWriter::~XYZWriter() = default;
-
-void XYZWriter::PlotParticles(const ParticleContainer &particles, const std::string &filename,
-                              int iteration) {
+void XYZWriter::Write(const ParticleContainer &particles, int iteration) {
     std::ofstream file;
     std::stringstream strstr;
-    strstr << "output/XYZ/" << filename << "_" << std::setfill('0') << std::setw(4) << iteration
+    strstr << "output/XYZ/" << prefix_ << "_" << std::setfill('0') << std::setw(4) << iteration
            << ".xyz";
     file.open(strstr.str().c_str());
     file << particles.size() << std::endl;

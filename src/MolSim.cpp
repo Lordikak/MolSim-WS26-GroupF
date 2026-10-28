@@ -30,7 +30,9 @@ void CalculateV(ParticleContainer &particles, double delta_t);
 /**
  * plot the particles to a xyz-file
  */
-void PlotParticles(ParticleContainer &particles, int iteration);
+void PlotParticles(const ParticleContainer &particles,
+                   const std::vector<std::unique_ptr<output_writer::OutputWriter>> &writers,
+                   int iteration);
 
 constexpr double kStartTime = 0;
 
@@ -41,6 +43,14 @@ int main(int argc, char *argsv[]) {
 
     ParticleContainer particles;
     std::string file_path;
+
+    const std::map<std::string, output_writer::OutputFormat> format_names{
+        {"xyz", output_writer::OutputFormat::XYZ},
+#ifdef ENABLE_VTK_OUTPUT
+        {"vtk", output_writer::OutputFormat::VTK},
+#endif
+    };
+    std::vector<std::unique_ptr<output_writer::OutputWriter>> writers;
 
     // parse command line inputs with CLI 11
     CLI::App app("MD simulation");
@@ -54,6 +64,11 @@ int main(int argc, char *argsv[]) {
     app.add_option("--end", end_time, "End Time of the sim")
         ->default_val(1000.0)
         ->check(CLI::PositiveNumber);
+    std::vector<output_writer::OutputFormat> output_formats;
+    app.add_option("--format", output_formats, "Output format")
+        ->transform(CLI::CheckedTransformer(format_names, CLI::ignore_case))
+        ->delimiter(',')
+        ->option_text("xyz,vtk");
 
     app.footer(
         "Example:\n"
@@ -67,6 +82,17 @@ int main(int argc, char *argsv[]) {
 
     FileReader file_reader;
     file_reader.ReadFile(particles, file_path);
+
+    // Add default writers
+    if (output_formats.empty()) {
+        output_formats.push_back(output_writer::OutputFormat::XYZ);
+    }
+
+    // Create Writers
+    const std::string out_name("MD_iteration");
+    for (const auto output_format : output_formats) {
+        writers.push_back(output_writer::OutputWriter::MakeWriter(output_format, out_name));
+    }
 
     // reset ouput folder
     std::filesystem::remove_all("output");
@@ -86,7 +112,7 @@ int main(int argc, char *argsv[]) {
 
         iteration++;
         if (iteration % 10 == 0) {
-            PlotParticles(particles, iteration);
+            PlotParticles(particles, writers, iteration);
         }
         std::cout << "Iteration " << iteration << " finished.\n";
 
@@ -132,14 +158,10 @@ void CalculateV(ParticleContainer &particles, const double delta_t) {
     }
 }
 
-void PlotParticles(ParticleContainer &particles, const int iteration) {
-    const std::string out_name("MD_itaration");
-
-    output_writer::XYZWriter xyz_writer;
-    xyz_writer.PlotParticles(particles, out_name, iteration);
-
-#ifdef ENABLE_VTK_OUTPUT
-    output_writer::VTKWriter vtk_writer;
-    vtk_writer.PlotParticles(particles, out_name, iteration);
-#endif
+void PlotParticles(const ParticleContainer &particles,
+                   const std::vector<std::unique_ptr<output_writer::OutputWriter>> &writers,
+                   const int iteration) {
+    for (const auto &writer : writers) {
+        writer->Write(particles, iteration);
+    }
 }

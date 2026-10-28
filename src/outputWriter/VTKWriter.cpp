@@ -25,8 +25,7 @@
 
 namespace output_writer {
 
-void VTKWriter::PlotParticles(const ParticleContainer &particles, const std::string &filename,
-                              const int iteration) {
+void VTKWriter::Write(const ParticleContainer &particles, const int iteration) {
     // Initialize points
     const auto points = vtkSmartPointer<vtkPoints>::New();
 
@@ -67,7 +66,7 @@ void VTKWriter::PlotParticles(const ParticleContainer &particles, const std::str
 
     // Create filename with iteration number
     std::stringstream strstr;
-    strstr << "output/VTK/" << filename << "_" << std::setfill('0') << std::setw(4) << iteration
+    strstr << "output/VTK/" << prefix_ << "_" << std::setfill('0') << std::setw(4) << iteration
            << ".vtu";
 
     // Create writer and set data
