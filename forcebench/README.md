@@ -29,3 +29,12 @@ Builds and runs every variant with g++ and clang++ each using `-O3` and `-O3 -ma
 | g++     | g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 |
 | clang++ | Ubuntu clang version 18.1.3 (1ubuntu1)      |
 | OS      | 6.6.87.1-microsoft-standard-WSL2            |
+
+`results_ref_CMK.csv` are the results used in the presentation measured on:
+
+|         |                                             |
+|---------|---------------------------------------------|
+| CPU     | AMD Ryzen AI 7 350 w/ Radeon 860M           |
+| g++     | g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 |
+| clang++ | Ubuntu clang version 18.1.3 (1ubuntu1)      |
+| OS      | 6.17.9-76061709-generic                     |
