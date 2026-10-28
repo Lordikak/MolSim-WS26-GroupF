@@ -6,8 +6,7 @@
 #include <set>
 
 #include "FileReader.h"
-#include "outputWriter/VTKWriter.h"
-#include "outputWriter/XYZWriter.h"
+#include "outputWriter/OutputWriter.h"
 #include "utils/ArrayUtils.h"
 
 /**** forward declaration of the calculation functions ****/
