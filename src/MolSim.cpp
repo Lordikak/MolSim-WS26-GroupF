@@ -98,7 +98,7 @@ int main(int argc, char *argsv[]) {
 
     simulation::RunSimulation(
         particles, {kStartTime, end_time, delta_t},
-        [&writers](const ParticleContainer &p, const int iteration, const double time) {
+        [&writers](const ParticleContainer &p, const int iteration, const double /*time*/) {
             if (iteration % 10 == 0) {
                 PlotParticles(p, writers, iteration);
             }
@@ -107,41 +107,6 @@ int main(int argc, char *argsv[]) {
 
     std::cout << "output written. Terminating..." << std::endl;
     return 0;
-}
-
-void CalculateX(ParticleContainer &particles, const double delta_t) {
-    for (auto p : particles) {
-        p.SetX(p.x() + delta_t * p.v() + (delta_t * delta_t / (2 * p.m())) * p.f());
-    }
-}
-
-/**
- * @brief Computes gravitational force for every particle
- *
- * F_ij = m_i * m_j / |x_i - x_j|^3 * (x_j - x_i)
- * computed once per pair and then applies to both using newtons third law: F_ij = - F_ji
- * which halves the work
- *
- * @param particles particles to compute the forces for
- */
-void CalculateF(ParticleContainer &particles) {
-    // store old force in old_f and reset it, as it is calculated in the next step
-    for (auto p : particles) {
-        p.SetOldF(p.f());
-        p.SetF(Vec3{});
-    }
-
-    particles.ApplyPairForces([](auto p_i, auto p_j) {
-        const Vec3 delta_x = p_j.x() - p_i.x();
-        const double length = ArrayUtils::L2Norm(delta_x);
-        return (p_i.m() * p_j.m() / (length * length * length)) * delta_x;
-    });
-}
-
-void CalculateV(ParticleContainer &particles, const double delta_t) {
-    for (auto p : particles) {
-        p.SetV(p.v() + delta_t * (p.f() + p.old_f()) / (2 * p.m()));
-    }
 }
 
 void PlotParticles(const ParticleContainer &particles,
