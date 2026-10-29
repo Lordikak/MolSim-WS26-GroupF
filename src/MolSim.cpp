@@ -61,6 +61,10 @@ int main(int argc, char *argsv[]) {
         ->transform(CLI::CheckedTransformer(format_names, CLI::ignore_case))
         ->delimiter(',')
         ->option_text(format_list);
+    int write_every;
+    app.add_option("--write_every", write_every, "Write output every n iterations")
+        ->default_val(10)
+        ->check(CLI::PositiveNumber);
 
     app.callback([&] {
         if (!std::isfinite(start_time) || !std::isfinite(end_time) || !std::isfinite(delta_t)) {
@@ -103,14 +107,15 @@ int main(int argc, char *argsv[]) {
     std::filesystem::create_directories("output/VTK");
     std::filesystem::create_directories("output/VTK_ASCII");
 
-    simulation::RunSimulation(
-        particles, {start_time, end_time, delta_t},
-        [&writers](const ParticleContainer &p, const int iteration, const double /*time*/) {
-            if (iteration % 10 == 0) {
-                PlotParticles(p, writers, iteration);
-            }
-            std::cout << "Iteration " << iteration << " finished.\n";
-        });
+    const auto post_iter = [&writers, write_every](const ParticleContainer &p, const int iteration,
+                                                   const double /*time*/) {
+        if (iteration % write_every == 0) {
+            PlotParticles(p, writers, iteration);
+        }
+        std::cout << "Iteration " << iteration << " finished.\n";
+    };
+
+    simulation::RunSimulation(particles, {start_time, end_time, delta_t}, post_iter);
 
     std::cout << "output written. Terminating..." << std::endl;
     return 0;
