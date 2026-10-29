@@ -8,37 +8,48 @@
 #pragma once
 #ifdef ENABLE_VTK_OUTPUT
 
-#include <vtkSmartPointer.h>
-#include <vtkUnstructuredGrid.h>
-
-#include <list>
 #include <string>
+#include <utility>
 
-#include "Particle.h"
+#include "OutputWriter.h"
+#include "ParticleContainer.h"
 
-namespace outputWriter {
+namespace output_writer {
 
 /**
  * This class implements the functionality to generate vtk output from
  * particles using the official VTK library.
  */
-class VTKWriter {
- public:
-  VTKWriter() = default;
-  ~VTKWriter() = default;
+class VTKWriter final : public OutputWriter {
+    std::filesystem::path dir_;
+    std::string prefix_;
+    const bool ascii_;
 
-  // Delete copy constructor and assignment operator
-  VTKWriter(const VTKWriter &) = delete;
-  VTKWriter &operator=(const VTKWriter &) = delete;
+   public:
+    /**
+     * @brief Creates a VTK writer
+     *
+     * @param dir The directory the output gets written to, existing files get removed
+     * @param prefix File name prefix, files get named: `<prefix>_<iteration>.<extension>`
+     * @param ascii If the file should be written as ascii
+     */
+    explicit VTKWriter(std::filesystem::path dir, std::string prefix, const bool ascii)
+        : dir_(std::move(dir)), prefix_(std::move(prefix)), ascii_(ascii) {
+        std::filesystem::remove_all(dir_);
+        std::filesystem::create_directories(dir_);
+    }
 
-  /**
-   * Write VTK output of particles.
-   * @param particles Particles to add to the output
-   * @param filename Output filename
-   * @param iteration Current iteration number
-   */
-  void plotParticles(std::list<Particle> particles, const std::string &filename, int iteration);
+    // Delete copy constructor and assignment operator
+    VTKWriter(const VTKWriter &) = delete;
+    VTKWriter &operator=(const VTKWriter &) = delete;
+
+    /**
+     * Write VTK output of particles.
+     * @param particles Particles to add to the output
+     * @param iteration Current iteration number
+     */
+    void Write(const ParticleContainer &particles, int iteration) override;
 };
 
-}  // namespace outputWriter
+}  // namespace output_writer
 #endif

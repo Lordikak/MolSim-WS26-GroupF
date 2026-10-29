@@ -8,19 +8,35 @@
 #pragma once
 
 #include <fstream>
-#include <list>
+#include <string>
+#include <utility>
 
-#include "Particle.h"
+#include "OutputWriter.h"
+#include "ParticleContainer.h"
 
-namespace outputWriter {
+namespace output_writer {
 
-class XYZWriter {
- public:
-  XYZWriter();
+/**
+ * @brief Writes particle positions
+ */
+class XYZWriter final : public OutputWriter {
+    std::filesystem::path dir_;
+    std::string prefix_;
 
-  virtual ~XYZWriter();
+   public:
+    /**
+     * @brief Creates the Writer
+     * @param dir The directory the output gets written to, existing files get removed
+     * @param prefix File name prefix, files get named: `<prefix>_<iteration>.<extension>`
+     */
+    explicit XYZWriter(std::filesystem::path dir, std::string prefix)
+        : dir_(std::move(dir)), prefix_(std::move(prefix)) {
+        std::filesystem::remove_all(dir_);
+        std::filesystem::create_directories(dir_);
+    }
 
-  void plotParticles(std::list<Particle> particles, const std::string &filename, int iteration);
+    /// @copydoc OutputWriter::Write
+    void Write(const ParticleContainer &particles, int iteration) override;
 };
 
-}  // namespace outputWriter
+}  // namespace output_writer
