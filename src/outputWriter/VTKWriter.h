@@ -21,6 +21,7 @@ namespace output_writer {
  * particles using the official VTK library.
  */
 class VTKWriter final : public OutputWriter {
+    std::filesystem::path dir_;
     std::string prefix_;
     const bool ascii_;
 
@@ -28,13 +29,15 @@ class VTKWriter final : public OutputWriter {
     /**
      * @brief Creates a VTK writer
      *
-     * @todo Pass the Output dir from MakeWriter instead of hardcoding
-     *
+     * @param dir The directory the output gets written to, existing files get removed
      * @param prefix File name prefix, files get named: `<prefix>_<iteration>.<extension>`
      * @param ascii If the file should be written as ascii
      */
-    explicit VTKWriter(std::string prefix, const bool ascii)
-        : prefix_(std::move(prefix)), ascii_(ascii) {}
+    explicit VTKWriter(std::filesystem::path dir, std::string prefix, const bool ascii)
+        : dir_(std::move(dir)), prefix_(std::move(prefix)), ascii_(ascii) {
+        std::filesystem::remove_all(dir_);
+        std::filesystem::create_directories(dir_);
+    }
 
     // Delete copy constructor and assignment operator
     VTKWriter(const VTKWriter &) = delete;

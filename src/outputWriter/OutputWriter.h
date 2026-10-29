@@ -1,4 +1,5 @@
 #pragma once
+#include <filesystem>
 #include <memory>
 
 #include "ParticleContainer.h"
@@ -32,11 +33,17 @@ class OutputWriter {
 
     /**
      * @brief Factory for a Writer in the specified @p format
+     *
+     * The files get written into subdirs in dir not dir itself
+     *
      * @param format File format
+     * @param dir path for the output folder
      * @param prefix File name prefix, files get named: `<prefix>_<iteration>.<extension>`
      * @return Writer in the @p format
      */
-    static std::unique_ptr<OutputWriter> MakeWriter(OutputFormat format, std::string prefix);
+    static std::unique_ptr<OutputWriter> MakeWriter(OutputFormat format,
+                                                    const std::filesystem::path &dir,
+                                                    std::string prefix);
 };
 
 }  // namespace output_writer

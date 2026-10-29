@@ -65,6 +65,8 @@ int main(int argc, char *argsv[]) {
     app.add_option("--write_every", write_every, "Write output every n iterations")
         ->default_val(10)
         ->check(CLI::PositiveNumber);
+    std::filesystem::path out_dir;
+    app.add_option("-o,--output", out_dir, "Output directory")->default_val("output");
 
     app.callback([&] {
         if (!std::isfinite(start_time) || !std::isfinite(end_time) || !std::isfinite(delta_t)) {
@@ -97,15 +99,8 @@ int main(int argc, char *argsv[]) {
     const std::string out_name("MD_iteration");
     for (const std::set unique_formats(output_formats.begin(), output_formats.end());
          const auto format : unique_formats) {
-        writers.push_back(output_writer::OutputWriter::MakeWriter(format, out_name));
+        writers.push_back(output_writer::OutputWriter::MakeWriter(format, out_dir, out_name));
     }
-
-    // reset ouput folder
-    std::filesystem::remove_all("output");
-    std::filesystem::create_directories("output");
-    std::filesystem::create_directories("output/XYZ");
-    std::filesystem::create_directories("output/VTK");
-    std::filesystem::create_directories("output/VTK_ASCII");
 
     const auto post_iter = [&writers, write_every](const ParticleContainer &p, const int iteration,
                                                    const double /*time*/) {
