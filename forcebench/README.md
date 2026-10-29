@@ -48,3 +48,12 @@ Builds and runs every variant with g++ and clang++ each using `-O3` and `-O3 -ma
 | g++     | g++ (GCC) 15.2.1 20260123 (Red Hat 15.2.1-7)|
 | clang++ | clang version 20.1.8 (Fedora 20.1.8-4.fc42) |
 | OS      | 6.19.14-108.fc42.x86_64                     |
+
+`results_ref_jakoblap.csv` are the results used in the presentation measured on:
+
+|         |                                             |
+|---------|---------------------------------------------|
+| CPU     | Intel(R) Core(TM) 5 120U                    |
+| g++     | g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 |
+| clang++ | Ubuntu clang version 18.1.3 (1ubuntu1)      |
+| OS      | 7.0.0-34-generic                            |
