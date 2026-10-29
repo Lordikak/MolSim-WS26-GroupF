@@ -47,6 +47,8 @@ void RunSimulation(
 
     int iteration = 0;
 
+    CalculateF(particles);
+
     // for this loop, we assume: current x, current f and current v are known
     while (current_time < settings.end_time) {
         CalculateX(particles, settings.delta_t);
