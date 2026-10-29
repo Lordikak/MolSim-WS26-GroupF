@@ -5,7 +5,7 @@
 
 /**
  * @brief configuration parameters for a simulation run
- * 
+ *
  * contains positive arguments start time, end time, and delta t
  */
 namespace simulation {
@@ -17,7 +17,7 @@ struct SimulationSettings {
 
 /**
  * @brief Calculates each iteration of a simulation run
- * 
+ *
  * calculates forces, positions, and velocities for each particle each iteration
  * beginning at settings.start_time until settings.end_time, with a step size
  * settings.delta_t
