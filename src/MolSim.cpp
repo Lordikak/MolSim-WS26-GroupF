@@ -30,6 +30,7 @@ int main(int argc, char *argsv[]) {
 
     const std::map<std::string, output_writer::OutputFormat> format_names{
         {"xyz", output_writer::OutputFormat::kXyz},
+        {"msb", output_writer::OutputFormat::kMsb},
 #ifdef ENABLE_VTK_OUTPUT
         {"vtk", output_writer::OutputFormat::kVtk},
         {"vtka", output_writer::OutputFormat::kVtkAscii},
@@ -99,7 +100,7 @@ int main(int argc, char *argsv[]) {
     const std::string out_name("MD_iteration");
     for (const std::set unique_formats(output_formats.begin(), output_formats.end());
          const auto format : unique_formats) {
-        writers.push_back(output_writer::OutputWriter::MakeWriter(format, out_dir, out_name));
+        writers.push_back(output_writer::OutputWriter::MakeWriter(format, out_dir, out_name, start_time, delta_t));
     }
 
     const auto post_iter = [&writers, write_every](const ParticleContainer &p, const int iteration,

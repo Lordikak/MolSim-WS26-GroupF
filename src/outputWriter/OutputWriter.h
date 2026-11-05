@@ -11,6 +11,7 @@ namespace output_writer {
  */
 enum class OutputFormat {
     kXyz,  ///< Plain text XYZ file, only contains Positions
+    kMsb,
 #ifdef ENABLE_VTK_OUTPUT
     kVtk,       ///< VTK unstructured file (.vtu)
     kVtkAscii,  ///< VTK unstructured file (.vtu) as ascii rep
@@ -39,11 +40,14 @@ class OutputWriter {
      * @param format File format
      * @param dir path for the output folder
      * @param prefix File name prefix, files get named: `<prefix>_<iteration>.<extension>`
+     * @param start_time
+     * @param dt
      * @return Writer in the @p format
      */
     static std::unique_ptr<OutputWriter> MakeWriter(OutputFormat format,
                                                     const std::filesystem::path &dir,
-                                                    std::string prefix);
+                                                    std::string prefix, double start_time,
+                                                    double dt);
 };
 
 }  // namespace output_writer
