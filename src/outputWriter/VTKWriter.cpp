@@ -13,64 +13,72 @@
 #include <vtkFloatArray.h>
 #include <vtkIntArray.h>
 #include <vtkPointData.h>
+#include <vtkPoints.h>
+#include <vtkSmartPointer.h>
+#include <vtkUnstructuredGrid.h>
 #include <vtkXMLUnstructuredGridWriter.h>
 
 #include <iomanip>
 #include <sstream>
 
-namespace outputWriter {
+#include "ParticleContainer.h"
 
-void VTKWriter::plotParticles(std::list<Particle> particles, const std::string &filename, int iteration) {
-  // Initialize points
-  auto points = vtkSmartPointer<vtkPoints>::New();
+namespace output_writer {
 
-  // Create and configure data arrays
-  vtkNew<vtkFloatArray> massArray;
-  massArray->SetName("mass");
-  massArray->SetNumberOfComponents(1);
+void VTKWriter::Write(const ParticleContainer &particles, const int iteration) {
+    // Initialize points
+    const auto points = vtkSmartPointer<vtkPoints>::New();
 
-  vtkNew<vtkFloatArray> velocityArray;
-  velocityArray->SetName("velocity");
-  velocityArray->SetNumberOfComponents(3);
+    // Create and configure data arrays
+    const vtkNew<vtkFloatArray> mass_array;
+    mass_array->SetName("mass");
+    mass_array->SetNumberOfComponents(1);
 
-  vtkNew<vtkFloatArray> forceArray;
-  forceArray->SetName("force");
-  forceArray->SetNumberOfComponents(3);
+    const vtkNew<vtkFloatArray> velocity_array;
+    velocity_array->SetName("velocity");
+    velocity_array->SetNumberOfComponents(3);
 
-  vtkNew<vtkIntArray> typeArray;
-  typeArray->SetName("type");
-  typeArray->SetNumberOfComponents(1);
+    const vtkNew<vtkFloatArray> force_array;
+    force_array->SetName("force");
+    force_array->SetNumberOfComponents(3);
 
-  for (auto &p : particles) {
-    points->InsertNextPoint(p.getX().data());
-    massArray->InsertNextValue(static_cast<float>(p.getM()));
-    velocityArray->InsertNextTuple(p.getV().data());
-    forceArray->InsertNextTuple(p.getF().data());
-    typeArray->InsertNextValue(p.getType());
-  }
+    const vtkNew<vtkIntArray> type_array;
+    type_array->SetName("type");
+    type_array->SetNumberOfComponents(1);
 
-  // Set up the grid
-  auto grid = vtkSmartPointer<vtkUnstructuredGrid>::New();
-  grid->SetPoints(points);
+    for (auto p : particles) {
+        points->InsertNextPoint(p.x().data());
+        mass_array->InsertNextValue(static_cast<float>(p.m()));
+        velocity_array->InsertNextTuple(p.v().data());
+        force_array->InsertNextTuple(p.f().data());
+        type_array->InsertNextValue(p.type());
+    }
 
-  // Add arrays to the grid
-  grid->GetPointData()->AddArray(massArray);
-  grid->GetPointData()->AddArray(velocityArray);
-  grid->GetPointData()->AddArray(forceArray);
-  grid->GetPointData()->AddArray(typeArray);
+    // Set up the grid
+    const auto grid = vtkSmartPointer<vtkUnstructuredGrid>::New();
+    grid->SetPoints(points);
 
-  // Create filename with iteration number
-  std::stringstream strstr;
-  strstr << filename << "_" << std::setfill('0') << std::setw(4) << iteration << ".vtu";
+    // Add arrays to the grid
+    grid->GetPointData()->AddArray(mass_array);
+    grid->GetPointData()->AddArray(velocity_array);
+    grid->GetPointData()->AddArray(force_array);
+    grid->GetPointData()->AddArray(type_array);
 
-  // Create writer and set data
-  vtkNew<vtkXMLUnstructuredGridWriter> writer;
-  writer->SetFileName(strstr.str().c_str());
-  writer->SetInputData(grid);
-  writer->SetDataModeToAscii();
+    // Create filename with iteration number
+    std::stringstream strstr;
+    strstr << prefix_ << "_" << std::setfill('0') << std::setw(4) << iteration << ".vtu";
 
-  // Write the file
-  writer->Write();
+    // Create writer and set data
+    const vtkNew<vtkXMLUnstructuredGridWriter> writer;
+    writer->SetFileName((dir_ / strstr.str()).string().c_str());
+    writer->SetInputData(grid);
+    if (ascii_)
+        writer->SetDataModeToAscii();
+    else
+        writer->SetDataModeToBinary();
+
+    // Write the file
+    writer->Write();
 }
-}  // namespace outputWriter
+}  // namespace output_writer
 #endif

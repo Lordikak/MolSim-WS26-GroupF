@@ -1,11 +1,11 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.20)
 
 # Enable C++17. You may raise the standard if you want
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # define project name, version
-project(PSEMolDyn VERSION 0.0.1 LANGUAGES CXX)
+project(MolSim_GroupF VERSION 0.0.1 LANGUAGES CXX)
 
 # let ccmake and cmake-gui offer the default build type options
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug;Release;RelWithDebInfo;MinSizeRel")
@@ -26,6 +26,8 @@ file(GLOB_RECURSE MY_SRC
 # create make target
 add_executable(MolSim ${MY_SRC})
 
+target_include_directories(MolSim SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/external)
+
 target_include_directories(MolSim
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -35,7 +37,7 @@ target_include_directories(MolSim
 # depending on the compiler different flags are used
 target_compile_options(MolSim
         PRIVATE
-            $<$<CXX_COMPILER_ID:GNU>:-Wall>
+            $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra>
             # disable some spam warnings for icpc...
             $<$<CXX_COMPILER_ID:Intel>:-w3 -wd383,981,1418,1572,2259>
 )
