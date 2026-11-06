@@ -1,6 +1,7 @@
 #include <cfloat>
 #include <string>
 
+#include "ParticleRenderer.h"
 #include "raylib.h"
 #include "trajectory/MSBFReader.h"
 
@@ -42,6 +43,9 @@ int main (int argc, char* argv[]) {
     double speed = 1.0;
     bool paused = false;
 
+    ParticleRenderer renderer(std::string(GetApplicationDirectory()) + "assets/shaders/");
+    std::uint32_t uploaded = msb::Frame::kNone;
+
     while (!WindowShouldClose()) {
         reader.Refresh();
         if (IsKeyPressed(KEY_SPACE)) {
@@ -55,13 +59,13 @@ int main (int argc, char* argv[]) {
         const msb::Frame &f = reader.LoadAtTime(sim_time);
 
         if (IsKeyPressed(KEY_F)) FrameParticles(cam, f);
+        if (f.step != uploaded) { renderer.Upload(f); uploaded = f.step; }
+        if (IsKeyPressed(KEY_F5)) renderer.ReloadShader();
 
         BeginDrawing();
         ClearBackground(BLACK);
         BeginMode3D(cam);
-        for (const Vec3 &p : f.positions)
-            DrawSphereEx({static_cast<float>(p[0]), static_cast<float>(p[1]), static_cast<float>(p[2])}, 0.1f, 6, 6, SKYBLUE);
-        DrawGrid(20, 1.0f);
+        renderer.Draw(.5);
         EndMode3D();
         DrawTextEx(font, TextFormat("step %u  t=%.3f  x%.2f", f.step, sim_time, speed), {10, 10}, 18, .5, RAYWHITE);
         EndDrawing();
