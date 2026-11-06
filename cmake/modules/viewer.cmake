@@ -19,6 +19,10 @@ if(MOLSIM_ENABLE_VIEWER)
             "${PROJECT_SOURCE_DIR}/viewer/main.cpp"
             "${PROJECT_SOURCE_DIR}/src/trajectory/MSBFReader.cpp"
     )
+    add_custom_command(TARGET MolSimViewer POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${PROJECT_SOURCE_DIR}/viewer/assets $<TARGET_FILE_DIR:MolSimViewer>/assets)
+
     target_include_directories(MolSimViewer PRIVATE "${PROJECT_SOURCE_DIR}/src")
     target_link_libraries(MolSimViewer PRIVATE raylib)
 endif ()

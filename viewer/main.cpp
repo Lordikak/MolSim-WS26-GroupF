@@ -1,4 +1,5 @@
 #include <cfloat>
+#include <string>
 
 #include "raylib.h"
 #include "trajectory/MSBFReader.h"
@@ -24,7 +25,16 @@ int main (int argc, char* argv[]) {
     msb::MSBFReader reader(argv[1]);
     const auto &h = reader.header();
 
+    SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI);
     InitWindow(1280, 720, "MolSimViewer");
+
+    const std::string font_path = std::string(GetApplicationDirectory()) + "assets/external/inter/Inter-Regular.ttf";
+    Font font = LoadFontEx(font_path.c_str(), 36, nullptr, 0);
+    if (font.texture.id == GetFontDefault().texture.id)
+        TraceLog(LOG_WARNING, "VIEWER: font not found at %s", font_path.c_str());
+    SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+
+
     SetTargetFPS(60);
     Camera3D cam{.position = {0,0,-50}, .target = {0,0,0}, .up = {0,1,0}, .fovy = 45, .projection = CAMERA_PERSPECTIVE};
 
@@ -53,7 +63,7 @@ int main (int argc, char* argv[]) {
             DrawSphereEx({static_cast<float>(p[0]), static_cast<float>(p[1]), static_cast<float>(p[2])}, 0.1f, 6, 6, SKYBLUE);
         DrawGrid(20, 1.0f);
         EndMode3D();
-        DrawText(TextFormat("step %u  t=%.3f  x%.2f", f.step, sim_time, speed), 10, 10, 20, RAYWHITE);
+        DrawTextEx(font, TextFormat("step %u  t=%.3f  x%.2f", f.step, sim_time, speed), {10, 10}, 18, .5, RAYWHITE);
         EndDrawing();
 
         if (!paused) sim_time += GetFrameTime() * speed;
