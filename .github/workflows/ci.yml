@@ -57,10 +57,11 @@ jobs:
   asan:
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v5
       - name: Configure
-        run: cmake -S . -B build
+        run: cmake -S . -B build -DENABLE_ASAN=ON -DCMAKE_BUILD_TYPE=Debug
       - name: Build
-        run: cmake --build build -j -DENABLE_ASAN=ON -DCMAKE_BUILD_TYPE=Debug
+        run: cmake --build build -j
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Example run
