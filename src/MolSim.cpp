@@ -8,6 +8,7 @@
 #include "FileReader.h"
 #include "Simulation.h"
 #include "outputWriter/OutputWriter.h"
+#include "utils/Logging.h"
 
 /**
  * @brief Uses @p writers to write the particles to files
@@ -67,6 +68,14 @@ int main(int argc, char *argsv[]) {
         ->check(CLI::PositiveNumber);
     std::filesystem::path out_dir;
     app.add_option("-o,--output", out_dir, "Output directory")->default_val("output");
+    const std::map<std::string, spdlog::level::level_enum> log_levels{
+        {"trace", spdlog::level::trace}, {"debug", spdlog::level::debug},
+        {"info", spdlog::level::info},   {"warn", spdlog::level::warn},
+        {"error", spdlog::level::err},   {"off", spdlog::level::off},
+    };
+    auto log_lvl = spdlog::level::info;
+    app.add_option("--log-level", log_lvl, "Log level")
+        ->transform(CLI::CheckedTransformer(log_levels, CLI::ignore_case));
 
     app.callback([&] {
         if (!std::isfinite(start_time) || !std::isfinite(end_time) || !std::isfinite(delta_t)) {
@@ -84,6 +93,8 @@ int main(int argc, char *argsv[]) {
 
     // parse with library functions
     CLI11_PARSE(app, argc, argsv);
+
+    logging::InitLogging(log_lvl);
 
     std::cout << "Hello from MolSim for PSE!" << std::endl;
 
