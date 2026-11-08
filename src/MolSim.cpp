@@ -10,6 +10,7 @@
 #include "inputReader/FileReader.h"
 #include "outputWriter/OutputWriter.h"
 #include "utils/Logging.h"
+#include "utils/ProgressBar.h"
 
 int main(int argc, char *argsv[]) {
     // Set by CLI11
@@ -112,46 +113,14 @@ int main(int argc, char *argsv[]) {
         writers.push_back(output_writer::OutputWriter::MakeWriter(format, out_dir, out_name));
     }
 
-    int last_percent = -1;
-    bool progress_line_finished = false;
+    ProgressBar bar{start_time, end_time};
 
-    const auto post_iter = [&writers, write_every, start_time, end_time, last_percent,
-                            progress_line_finished](const ParticleContainer &p, const int iteration,
-                                                    const double time) mutable {
+    const auto post_iter = [&writers, write_every, &bar](const ParticleContainer &p,
+                                                         const int iteration, const double time) {
         if (iteration % write_every == 0) {
             output_writer::OutputWriter::PlotParticles(p, writers, iteration);
         }
-
-        if (end_time <= start_time || progress_line_finished) {
-            return;
-        }
-
-        const double progress = (time - start_time) / (end_time - start_time) * 100.0;
-        const int percent = static_cast<int>(std::clamp(progress, 0.0, 100.0));
-
-        // Redraw only when the displayed percentage changes.
-        if (percent == last_percent) {
-            return;
-        }
-        last_percent = percent;
-
-        constexpr int kBarWidth = 50;
-        const int filled = percent * kBarWidth / 100;
-
-        std::string bar(kBarWidth, ' ');
-        for (int i = 0; i < filled; ++i) {
-            bar[i] = '=';
-        }
-        if (filled < kBarWidth) {
-            bar[filled] = '>';
-        }
-
-        std::cout << '\r' << '[' << bar << "] " << percent << '%' << std::flush;
-
-        if (percent == 100) {
-            std::cout << '\n';
-            progress_line_finished = true;
-        }
+        bar.Update(time);
     };
 
     simulation::Simulation sim{std::move(particles), {start_time, end_time, delta_t}};
