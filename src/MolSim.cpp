@@ -87,19 +87,18 @@ int main(int argc, char *argsv[]) {
 
     logging::InitLogging(log_lvl);
 
-    std::cout << std::endl;
-    std::cout << "Hello from MolSim for PSE!" << std::endl;
+    SPDLOG_INFO("MolSim started");
 
     ParticleContainer particles;
     try {
         auto reader = file_reader::FileReader::MakeReader(file_path);
         reader->Read(particles);
     } catch (const std::exception &e) {
-        std::cerr << "Could not read input: " << e.what() << '\n';
+        SPDLOG_ERROR("Could not read input: {}", e.what());
         return 1;
     }
 
-    std::cout << "Simulation with " << particles.size() << " particles." << std::endl;
+    SPDLOG_INFO("Simulation with {} particles.", particles.size());
 
     // Add default writers
     if (output_formats.empty()) {
@@ -127,6 +126,6 @@ int main(int argc, char *argsv[]) {
 
     sim.Run(post_iter);
 
-    std::cout << "output written. Terminating..." << std::endl;
+    SPDLOG_INFO("Simulation finished, output written to {}, Terminating ...", out_dir.string());
     return 0;
 }

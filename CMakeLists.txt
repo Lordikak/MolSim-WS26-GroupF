@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.25)
 
 # Enable C++17. You may raise the standard if you want
 set(CMAKE_CXX_STANDARD 20)
