@@ -7,13 +7,14 @@
 
 #include "TxtReader.h"
 
+#include <spdlog/spdlog.h>
+
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <string>
 
 #include "ParticleContainer.h"
-#include <spdlog/spdlog.h>
 
 namespace file_reader {
 

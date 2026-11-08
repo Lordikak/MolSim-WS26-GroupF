@@ -98,6 +98,10 @@ int main(int argc, char *argsv[]) {
         return 1;
     }
 
+    if (particles.size() == 0) {
+        SPDLOG_WARN("No particles to simulate");
+    }
+
     SPDLOG_INFO("Simulation with {} particles.", particles.size());
 
     // Add default writers
