@@ -1,24 +1,15 @@
 
 #include <CLI11/CLI11.hpp>
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <ranges>
-#include <set>
+#include <string>
 
-#include "FileReader.h"
 #include "Simulation.h"
+#include "inputReader/FileReader.h"
 #include "outputWriter/OutputWriter.h"
 #include "utils/Logging.h"
-
-/**
- * @brief Uses @p writers to write the particles to files
- * @param particles Particles to write
- * @param writers Writers to write the particles
- * @param iteration Iteration, used for file name
- */
-void PlotParticles(const ParticleContainer &particles,
-                   const std::vector<std::unique_ptr<output_writer::OutputWriter>> &writers,
-                   int iteration);
 
 int main(int argc, char *argsv[]) {
     // Set by CLI11
@@ -26,7 +17,6 @@ int main(int argc, char *argsv[]) {
     double end_time;
     double start_time;
 
-    ParticleContainer particles;
     std::string file_path;
 
     const std::map<std::string, output_writer::OutputFormat> format_names{
@@ -96,10 +86,19 @@ int main(int argc, char *argsv[]) {
 
     logging::InitLogging(log_lvl);
 
+    std::cout << std::endl;
     std::cout << "Hello from MolSim for PSE!" << std::endl;
 
-    FileReader file_reader;
-    file_reader.ReadFile(particles, file_path);
+    ParticleContainer particles;
+    try {
+        auto reader = file_reader::FileReader::MakeReader(file_path);
+        reader->Read(particles);
+    } catch (const std::exception &e) {
+        std::cerr << "Could not read input: " << e.what() << '\n';
+        return 1;
+    }
+
+    std::cout << "Simulation with " << particles.size() << " particles." << std::endl;
 
     // Add default writers
     if (output_formats.empty()) {
@@ -113,24 +112,52 @@ int main(int argc, char *argsv[]) {
         writers.push_back(output_writer::OutputWriter::MakeWriter(format, out_dir, out_name));
     }
 
-    const auto post_iter = [&writers, write_every](const ParticleContainer &p, const int iteration,
-                                                   const double /*time*/) {
+    int last_percent = -1;
+    bool progress_line_finished = false;
+
+    const auto post_iter = [&writers, write_every, start_time, end_time, last_percent,
+                            progress_line_finished](const ParticleContainer &p, const int iteration,
+                                                    const double time) mutable {
         if (iteration % write_every == 0) {
-            PlotParticles(p, writers, iteration);
+            output_writer::OutputWriter::PlotParticles(p, writers, iteration);
         }
-        std::cout << "Iteration " << iteration << " finished.\n";
+
+        if (end_time <= start_time || progress_line_finished) {
+            return;
+        }
+
+        const double progress = (time - start_time) / (end_time - start_time) * 100.0;
+        const int percent = static_cast<int>(std::clamp(progress, 0.0, 100.0));
+
+        // Redraw only when the displayed percentage changes.
+        if (percent == last_percent) {
+            return;
+        }
+        last_percent = percent;
+
+        constexpr int kBarWidth = 50;
+        const int filled = percent * kBarWidth / 100;
+
+        std::string bar(kBarWidth, ' ');
+        for (int i = 0; i < filled; ++i) {
+            bar[i] = '=';
+        }
+        if (filled < kBarWidth) {
+            bar[filled] = '>';
+        }
+
+        std::cout << '\r' << '[' << bar << "] " << percent << '%' << std::flush;
+
+        if (percent == 100) {
+            std::cout << '\n';
+            progress_line_finished = true;
+        }
     };
 
-    simulation::RunSimulation(particles, {start_time, end_time, delta_t}, post_iter);
+    simulation::Simulation sim{std::move(particles), {start_time, end_time, delta_t}};
+
+    sim.Run(post_iter);
 
     std::cout << "output written. Terminating..." << std::endl;
     return 0;
-}
-
-void PlotParticles(const ParticleContainer &particles,
-                   const std::vector<std::unique_ptr<output_writer::OutputWriter>> &writers,
-                   const int iteration) {
-    for (const auto &writer : writers) {
-        writer->Write(particles, iteration);
-    }
 }
