@@ -46,6 +46,10 @@ void Simulation::Run(
                  settings_.start_time, settings_.end_time, settings_.delta_t, iteration_count,
                  particles_.size());
 
+    SPDLOG_DEBUG("Starting simulation: t = {} .. {}, dt = {}, {} iterations, {} particles",
+                 settings_.start_time, settings_.end_time, settings_.delta_t, iteration_count,
+                 particles_.size());
+
     CalculateF(particles_);
 
     post_iteration(particles_, 0, settings_.start_time);
