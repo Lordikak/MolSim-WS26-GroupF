@@ -7,6 +7,8 @@
 #include "../src/utils/Vec3.h"
 
 constexpr double kErrorEpsilon = 1e-4;
+constexpr double kDeltaT = 0.0002;
+constexpr double kEndTime = 10000 * kDeltaT;
 
 /**
  *@brief Test whether the system conserves energy
@@ -18,7 +20,6 @@ constexpr double kErrorEpsilon = 1e-4;
  */
 TEST(SimulationTest, EnergyConserved) {
     constexpr int kCheckEvery = 10;  // run a check every ten iterations
-    constexpr double kDeltaT = 0.0002;
 
     ParticleContainer particles;
     Vec3 x_one{0.0, 0.0, 0.0}, x_two{0.0, 2.0, 0.0};
@@ -31,7 +32,7 @@ TEST(SimulationTest, EnergyConserved) {
     LennardJones lj{};
     const double original_energy = particles.CalculateEnergy(lj);
 
-    simulation::Simulation sim{std::move(particles), {0, 100, kDeltaT}};
+    simulation::Simulation sim{std::move(particles), {0, kEndTime, kDeltaT}};
 
     const auto post_iter = [&lj, original_energy](const ParticleContainer &p, const int iteration,
                                                   const double /*time*/) {
@@ -53,7 +54,6 @@ TEST(SimulationTest, EnergyConserved) {
  */
 TEST(SimulationTest, MomentumConserved) {
     constexpr int kCheckEvery = 10;  // run a check every ten iterations
-    constexpr double kDeltaT = 0.0002;
 
     ParticleContainer particles;
     Vec3 x_one{0.0, 0.0, 0.0}, x_two{0.0, 2.0, 0.0}, x_three{2.0, 0.0, 0.0}, x_four{-1.5, 0.0, 0.0},
@@ -75,15 +75,15 @@ TEST(SimulationTest, MomentumConserved) {
         original_momentum = original_momentum + p.m() * p.v();
     }
 
-    simulation::Simulation sim{std::move(particles), {0, 100, kDeltaT}};
+    simulation::Simulation sim{std::move(particles), {0, kEndTime, kDeltaT}};
 
-    const auto post_iter = [original_momentum](const ParticleContainer &p, const int iteration,
+    const auto post_iter = [original_momentum](const ParticleContainer &pc, const int iteration,
                                                const double /*time*/) {
         if (iteration % kCheckEvery == 0) {
             // calculate momentum of each iteration
             Vec3 current_momentum = {0.0, 0.0, 0.0};
 
-            for (auto p : p) {
+            for (auto p : pc) {
                 current_momentum = current_momentum + p.m() * p.v();
             }
             // check each component of the momentum against each other

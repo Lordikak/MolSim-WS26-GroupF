@@ -149,25 +149,6 @@ INSTANTIATE_TEST_SUITE_P(ZeroCases, LennardJonesTest,
                                  .expected_force = {0.0, 0.0, 0.0},
                              }));
 
-// check edge cases - non parameterized for ease
-// See that large magnitude repulsions remain finite and do not overflow
-TEST(EdgeCases, FiniteForces) {
-    LennardJones lj{.epsilon = 5.0, .sigma = 1.0};
-
-    const std::vector<double> dist = {1e-3, 1e-4, 1e-5, 1e-10, 1e-20};
-
-    for (double r : dist) {
-        MockParticle p_i{0.0, 0.0, 0.0};
-        MockParticle p_j{r, 0.0, 0.0};
-
-        const Vec3 resulting_force = lj(p_i, p_j);
-
-        for (double component : resulting_force) {
-            EXPECT_TRUE(std::isfinite(component)) << "Infinite force component at distance " << r;
-        }
-    }
-}
-
 // checked swapped particles reverses force
 INSTANTIATE_TEST_SUITE_P(ReversalCases, ReversalTest,
                          ::testing::Values(

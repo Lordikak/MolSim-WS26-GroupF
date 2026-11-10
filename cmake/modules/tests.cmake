@@ -16,8 +16,6 @@ add_library(
         Lib
         "${PROJECT_SOURCE_DIR}/src/Simulation.cpp"
         "${PROJECT_SOURCE_DIR}/src/ParticleContainer.cpp"
-        "${PROJECT_SOURCE_DIR}/src/LennardJones.h"
-        "${PROJECT_SOURCE_DIR}/src/utils/Vec3.h"
 )
 
 target_link_libraries(Lib PUBLIC spdlog::spdlog)
