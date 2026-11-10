@@ -26,4 +26,18 @@ struct LennardJones {
         const double s12 = s6 * s6;
         return (24.0 * epsilon * inv_r2 * (s6 - 2.0 * s12)) * delta_x;
     }
+
+    /**
+     * @brief Compute potential energy
+     * @return potential energy between two particles
+     */
+    double Potential(auto p_i, auto p_j) const {
+        const Vec3 delta_x = p_j.x() - p_i.x();
+        const double r2 = ArrayUtils::L2NormSquared(delta_x);
+        const double inv_r2 = 1.0 / r2;
+        const double s2 = sigma * sigma * inv_r2;
+        const double s6 = s2 * s2 * s2;
+        const double s12 = s6 * s6;
+        return 4.0 * epsilon * (s12 - s6);
+    }
 };

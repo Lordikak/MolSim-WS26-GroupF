@@ -1,4 +1,5 @@
 #pragma once
+#include <concepts>
 #include <type_traits>
 #include <vector>
 
@@ -216,7 +217,7 @@ class ParticleContainer {
     template <class Kernel>
         requires std::is_invocable_r_v<Vec3, Kernel, ParticleRef<const ParticleContainer>,
                                        ParticleRef<const ParticleContainer>>
-    void ApplyPairForces(Kernel kernel) {
+    void ApplyPairForces(const Kernel kernel) {
         const std::size_t n = size();
         for (std::size_t i = 0; i < n; ++i) {
             const ParticleRef<const ParticleContainer> p_i(*this, i);
@@ -233,6 +234,41 @@ class ParticleContainer {
             }
             f_.set(i, f_.get(i) + f_i);
         }
+    }
+
+    /**
+     * @brief Calculate the total energy across the system. Method used for testing.
+     * Calls the @p kernel once per unordered pair (i, j) with i < j
+     *
+     * Kinetic energy is calculated for each particle, while Potential energy is calculated only
+     * once per unordered pair
+     *
+     * @param kernel Adds the potential between @p p_i and @p p_j to the accumulator @p energy
+     * @param energy Reference to the accumulator for total system energy
+     */
+    template <class Kernel>
+        requires requires(const Kernel m, ParticleRef<const ParticleContainer> a,
+                          ParticleRef<const ParticleContainer> b) {
+            { m.Potential(a, b) } -> std::convertible_to<double>;
+        }
+    double CalculateEnergy(const Kernel kernel) const {
+        double energy = 0.0;
+        const std::size_t n = size();
+
+        for (std::size_t i = 0; i < n; ++i) {
+            const ParticleRef<const ParticleContainer> p_i(*this, i);
+            // add the kinetic energy from this particle
+            energy += 0.5 * p_i.m() * ArrayUtils::L2NormSquared(p_i.v());
+
+            // Not strictly necessary but no compiler promise violated
+            INDEPENDENT_ITERATIONS
+            for (std::size_t j = i + 1; j < n; ++j) {
+                const ParticleRef<const ParticleContainer> p_j(*this, j);
+                // add the potential energy to the accumulator energy
+                energy += kernel.Potential(p_i, p_j);
+            }
+        }
+        return energy;
     }
 };
 
