@@ -375,8 +375,8 @@ void ParticleContainer::PairsOfCell(const Kernel kernel, const Index c) {
     const Index w = grid_.Count()[0];
     const Index h = grid_.Count()[1];
 
-    PairsBetween(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c - 1 + w * h - w],
-                 cell_start_[c - 1 + w * h - w + 3]);
+    PairsBetween(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c - 1 - w * h + w],
+                 cell_start_[c - 1 - w * h + w + 3]);
     PairsBetween(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c - 1 + w * h],
                  cell_start_[c - 1 + w * h + 3]);
     PairsBetween(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c - 1 + w * h + w],
