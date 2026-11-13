@@ -44,8 +44,6 @@ class Simulation {
      * @brief Computes LJ for each particle pair
      *
      * computed once per pair and then applies to both using newtons third law: F_ij = - F_ji
-     *
-     * @param particles particles to compute the forces for
      */
     void CalculateF();
 
@@ -75,13 +73,13 @@ class Simulation {
 
 template <PairKernel Kernel>
 void Simulation<Kernel>::CalculateF() {
+    particles_.Rebuild();
     // store old force in old_f and reset it, as it is calculated in the next step
     for (auto p : particles_) {
         p.SetOldF(p.f());
         p.SetF(Vec3{});
     }
 
-    particles_.Rebuild();
     particles_.ApplyPairForces(kernel_);
 }
 

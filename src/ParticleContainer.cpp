@@ -83,7 +83,7 @@ void ParticleContainer::Rebuild() {
     x_.Permutate(perm_, scratch_double_);
     v_.Permutate(perm_, scratch_double_);
     f_.Permutate(perm_, scratch_double_);
-    old_f_.Permutate(perm_, scratch_double_);
+    //old_f_.Permutate(perm_, scratch_double_);
     vector_utils::Permutate(m_, perm_, scratch_double_);
     vector_utils::Permutate(type_, perm_, scratch_int_);
 }
