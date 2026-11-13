@@ -37,7 +37,7 @@ Compile for Benchmaxxing:
 ```bash
 cmake -S . -B build-benchmax -DCMAKE_BUILD_TYPE=Release -DLOG_LEVEL=OFF -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_FLAGS=-march=native
 cmake --build build-benchmax -j
-./build-benchmax/MolSim input/eingabe-2bodies-lennard-jones.json --dt 0.0002 --end 5 --bench
+./build-benchmax/MolSim input/eingabe-2bodies-sheet3.json --dt 0.0005 --end 20 --bench
 ```
 
 ## Documentation

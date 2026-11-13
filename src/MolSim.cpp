@@ -95,7 +95,7 @@ int main(int argc, char *argsv[]) {
 
     constexpr double kRCutoff = 3.0;
 
-    CellGrid grid({-20, -30, -0.5}, {55, 30, 0.5}, kRCutoff);
+    CellGrid grid({0, 0, -0.5}, {180, 90, 0.5}, kRCutoff);
 
     ParticleContainer particles(std::move(grid));
     try {
