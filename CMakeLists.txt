@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.25)
 
 # Enable C++17. You may raise the standard if you want
 set(CMAKE_CXX_STANDARD 20)
@@ -15,6 +15,12 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING
             "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
+
+option(ENABLE_ASAN "Build with address sanitization" OFF)
+if(ENABLE_ASAN)
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address)
+endif()
 
 # collect all cpp files
 file(GLOB_RECURSE MY_SRC
@@ -48,3 +54,5 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
 include(vtk)
 include(clang-format)
 include(doxygen)
+include(spdlog)
+include(tests)
