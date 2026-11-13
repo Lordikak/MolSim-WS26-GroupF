@@ -148,7 +148,7 @@ class CellGrid {
           inv_cell_size_{},
           cell_count_(27) {}
     CellGrid(Vec3 min, Vec3 max, double r_cutoff);
-    [[nodiscard]] Index CellOf(const Vec3 &x) const;
+    [[nodiscard]] CellCoords CellOf(const Vec3 &x) const;
     [[nodiscard]] Index LinearIndex(const CellCoords &c) const {
         return c[0] + count_[0] * (c[1] + count_[1] * c[2]);
     }

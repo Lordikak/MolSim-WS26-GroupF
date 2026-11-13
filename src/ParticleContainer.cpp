@@ -23,13 +23,13 @@ CellGrid::CellGrid(Vec3 min, Vec3 max, const double r_cutoff)
     cell_count_ = count_[0] * count_[1] * count_[2];
 }
 
-Index CellGrid::CellOf(const Vec3 &x) const {
+CellCoords CellGrid::CellOf(const Vec3 &x) const {
     CellCoords c{};
     for (std::size_t d = 0; d < 3; ++d) {
         const double rel = std::floor((x[d] - domain_min_[d]) * inv_cell_size_[d]) + 1.0;
         c[d] = static_cast<Index>(std::clamp(rel, 0.0, static_cast<double>(count_[d] - 1)));
     }
-    return LinearIndex(c);
+    return c;
 }
 CellCoords CellGrid::VecIndex(const Index c) const {
     const Index x = c % count_[0];
@@ -50,11 +50,12 @@ void ParticleContainer::Rebuild() {
     cell_particle_count_.assign(grid_.CellCount(), 0);
     keys_.resize(size());
     for (auto p : *this) {
-        const Index index = grid_.CellOf(p.x());
-        if (grid_.IsHalo(index)) {
+        const CellCoords index_vec = grid_.CellOf(p.x());
+        if (grid_.IsHalo(index_vec)) {
             keys_[p.index()] = kDropped;
             continue;
         }
+        const Index index = grid_.LinearIndex(index_vec);
         keys_[p.index()] = index;
         cell_particle_count_[index] += 1;
     }
