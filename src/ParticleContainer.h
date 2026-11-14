@@ -283,6 +283,7 @@ class ParticleContainer {
      */
     template <PairKernel Kernel>
     void ApplyPairForces(const Kernel kernel) {
+#ifndef _OPENMP
         const CellCoords count = grid_.Count();
         for (Index z = 1; z < count[2] - 1; ++z) {
             for (Index y = 1; y < count[1] - 1; ++y) {
@@ -291,6 +292,28 @@ class ParticleContainer {
                 }
             }
         }
+#else
+
+        const CellCoords count = grid_.Count();
+
+#pragma omp parallel
+        for (Index z_offset = 0; z_offset < 3; ++z_offset) {
+            for (Index y_offset = 0; y_offset < 2; ++y_offset) {
+                const Index y_job_count = (count[1] - 1 - y_offset) / 2;
+                const Index z_job_count = (count[2] - z_offset) / 3;
+#pragma omp for schedule(dynamic)
+                for (Index i = 0; i < y_job_count * z_job_count; ++i) {
+                    Index y = (i % y_job_count) * 2 + 1 + y_offset;
+                    Index z = (i / y_job_count) * 3 + 1 + z_offset;
+
+                    for (Index x = 1; x < count[0] - 1; ++x) {
+                        PairsOfCell(kernel, grid_.LinearIndex({x, y, z}));
+                    }
+                }
+            }
+        }
+
+#endif
     }
 
     void Rebuild();
