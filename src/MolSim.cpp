@@ -91,7 +91,13 @@ int main(int argc, char *argsv[]) {
 
     SPDLOG_INFO("MolSim started");
 
-    ParticleContainer particles;
+    // TODO: Get those values from the input reader
+
+    constexpr double kRCutoff = 3.0;
+
+    CellGrid grid({0, 0, -0.5}, {180, 90, 0.5}, kRCutoff);
+
+    ParticleContainer particles(std::move(grid));
     try {
         auto reader = file_reader::FileReader::MakeReader(file_path);
         reader->Read(particles);
@@ -133,7 +139,8 @@ int main(int argc, char *argsv[]) {
                                      ? StepCallback{[](const ParticleContainer &, int, double) {}}
                                      : StepCallback{post_iter};
 
-    simulation::Simulation sim{std::move(particles), {start_time, end_time, delta_t}};
+    simulation::Simulation sim{
+        std::move(particles), {start_time, end_time, delta_t}, LennardJones{.r_cutoff = kRCutoff}};
 
     const auto start = std::chrono::steady_clock::now();
     sim.Run(on_step);
