@@ -1,11 +1,11 @@
 #include "ParticleContainer.h"
 
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <cmath>
 #include <span>
 #include <stdexcept>
-#include <spdlog/spdlog.h>
-
 
 #include "utils/VectorUtils.h"
 
@@ -61,7 +61,9 @@ void ParticleContainer::Rebuild() {
         keys_[i] = index;
     }
 
-    if (!moved) { return; }
+    if (!moved) {
+        return;
+    }
 
     cell_particle_count_.assign(grid_.CellCount(), 0);
     for (const Index key : keys_) {

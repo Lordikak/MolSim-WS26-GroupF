@@ -125,6 +125,13 @@ class ParticleIterator {
 };
 
 using CellCoords = std::array<Index, 3>;
+using CellOffset = std::array<std::int32_t, 3>;
+
+inline CellCoords operator+(const CellCoords &c, const CellOffset &o) {
+    return {static_cast<Index>(static_cast<std::int32_t>(c[0]) + o[0]),
+            static_cast<Index>(static_cast<std::int32_t>(c[1]) + o[1]),
+            static_cast<Index>(static_cast<std::int32_t>(c[2]) + o[2])};
+}
 
 // TODO: Implement these (Currently everything is outflow) (Ghost particles for Reflecting needs to
 // be added)
@@ -194,7 +201,14 @@ class ParticleContainer {
     template <PairKernel Kernel>
     void PairsBetween(Kernel kernel, Index a_start, Index a_end, Index b_start, Index b_end);
     template <PairKernel Kernel>
-    void PairsOfCell(Kernel kernel, Index c);
+    void PairsOfCell(Kernel kernel, CellCoords c);
+
+    [[nodiscard]] Index end(const CellCoords cell_index) const {
+        return cell_start_[grid_.LinearIndex(cell_index) + 1];
+    }
+    [[nodiscard]] Index start(const CellCoords cell_index) const {
+        return cell_start_[grid_.LinearIndex(cell_index)];
+    }
 
    public:
     ParticleContainer() = default;
@@ -288,7 +302,7 @@ class ParticleContainer {
         for (Index z = 1; z < count[2] - 1; ++z) {
             for (Index y = 1; y < count[1] - 1; ++y) {
                 for (Index x = 1; x < count[0] - 1; ++x) {
-                    PairsOfCell(kernel, grid_.LinearIndex({x, y, z}));
+                    PairsOfCell(kernel, {x, y, z});
                 }
             }
         }
@@ -307,7 +321,7 @@ class ParticleContainer {
                     Index z = (i / y_job_count) * 3 + 1 + z_offset;
 
                     for (Index x = 1; x < count[0] - 1; ++x) {
-                        PairsOfCell(kernel, grid_.LinearIndex({x, y, z}));
+                        PairsOfCell(kernel, {x, y, z});
                     }
                 }
             }
@@ -355,7 +369,8 @@ class ParticleContainer {
 };
 
 template <PairKernel Kernel>
-void ParticleContainer::PairsWithinAndNext(const Kernel kernel, const Index start, const Index end, const Index next_end) {
+void ParticleContainer::PairsWithinAndNext(const Kernel kernel, const Index start, const Index end,
+                                           const Index next_end) {
     for (Index i = start; i < end; ++i) {
         const ParticleRef<const ParticleContainer> p_i(*this, i);
         Vec3 f_i{};
@@ -393,19 +408,13 @@ void ParticleContainer::PairsBetween(const Kernel kernel, const Index a_start, c
     }
 }
 template <PairKernel Kernel>
-void ParticleContainer::PairsOfCell(const Kernel kernel, const Index c) {
-    PairsWithinAndNext(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c + 2]);
-    const Index w = grid_.Count()[0];
-    const Index h = grid_.Count()[1];
+void ParticleContainer::PairsOfCell(const Kernel kernel, const CellCoords c) {
+    PairsWithinAndNext(kernel, start(c), end(c), end(c + CellCoords{1, 0, 0}));
 
-    PairsBetween(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c - 1 - w * h + w],
-                 cell_start_[c - 1 - w * h + w + 3]);
-    PairsBetween(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c - 1 + w * h],
-                 cell_start_[c - 1 + w * h + 3]);
-    PairsBetween(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c - 1 + w * h + w],
-                 cell_start_[c - 1 + w * h + w + 3]);
-    PairsBetween(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c - 1 + w],
-                 cell_start_[c - 1 + w + 3]);
+    for (auto row : {CellOffset{-1, 1, -1}, CellOffset{-1, 0, 1}, CellOffset{-1, 1, 1},
+                     CellOffset{-1, 1, 0}}) {
+        PairsBetween(kernel, start(c), end(c), start(c + row), end(c + row + CellOffset{2, 0, 0}));
+    }
 }
 
 #undef INDEPENDENT_ITERATIONS
