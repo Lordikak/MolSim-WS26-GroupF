@@ -51,11 +51,14 @@ constexpr Index kDropped = std::numeric_limits<Index>::max();
 void ParticleContainer::Rebuild() {
     bool moved = keys_.size() != size();
     keys_.resize(size());
-    for (auto p : *this) {
-        const CellCoords index_vec = grid_.CellOf(p.x());
+    // For some reason it only vectorizes for signed, f**** stupid compiler
+    const auto n = static_cast<std::int64_t>(size());
+#pragma omp parallel for schedule(static) reduction(|| : moved)
+    for (std::int64_t i = 0; i < n; ++i) {
+        const CellCoords index_vec = grid_.CellOf(x(i));
         const Index index = grid_.IsHalo(index_vec) ? kDropped : grid_.LinearIndex(index_vec);
-        moved |= index != keys_[p.index()];
-        keys_[p.index()] = index;
+        moved |= index != keys_[i];
+        keys_[i] = index;
     }
 
     if (!moved) { return; }
@@ -78,8 +81,6 @@ void ParticleContainer::Rebuild() {
     cell_start_.push_back(prefix_sum);
     perm_.resize(prefix_sum);
 
-    // Old count
-    const Index n = static_cast<Index>(size());
     // Build backward map
     for (Index i = 0; i < n; ++i) {
         if (keys_[i] == kDropped) continue;
