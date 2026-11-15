@@ -49,17 +49,20 @@ bool CellGrid::IsHalo(const CellCoords &c) const {
 constexpr Index kDropped = std::numeric_limits<Index>::max();
 
 void ParticleContainer::Rebuild() {
-    cell_particle_count_.assign(grid_.CellCount(), 0);
+    bool moved = keys_.size() != size();
     keys_.resize(size());
     for (auto p : *this) {
         const CellCoords index_vec = grid_.CellOf(p.x());
-        if (grid_.IsHalo(index_vec)) {
-            keys_[p.index()] = kDropped;
-            continue;
-        }
-        const Index index = grid_.LinearIndex(index_vec);
+        const Index index = grid_.IsHalo(index_vec) ? kDropped : grid_.LinearIndex(index_vec);
+        moved |= index != keys_[p.index()];
         keys_[p.index()] = index;
-        cell_particle_count_[index] += 1;
+    }
+
+    if (!moved) { return; }
+
+    cell_particle_count_.assign(grid_.CellCount(), 0);
+    for (const Index key : keys_) {
+        if (key != kDropped) ++cell_particle_count_[key];
     }
 
     Index prefix_sum = 0;
@@ -83,15 +86,22 @@ void ParticleContainer::Rebuild() {
         perm_[cell_particle_count_[keys_[i]]++] = i;
     }
 
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
     Index shifted = 0;
     for (Index j = 0; j < prefix_sum; ++j) shifted += perm_[j] != j;
     SPDLOG_DEBUG("Rebuild: {} of {} slots shifted", shifted, prefix_sum);
+#endif
 
     x_.Permutate(perm_, scratch_double_);
     v_.Permutate(perm_, scratch_double_);
     f_.Permutate(perm_, scratch_double_);
     vector_utils::Permutate(m_, perm_, scratch_double_);
     vector_utils::Permutate(type_, perm_, scratch_int_);
+
+    keys_.resize(prefix_sum);
+    for (Index c = 0; c < grid_.CellCount(); ++c) {
+        std::fill(keys_.begin() + cell_start_[c], keys_.begin() + cell_start_[c + 1], c);
+    }
 }
 
 void ParticleContainer::add(const Vec3 &x, const Vec3 &v, const double m, const int type) {
