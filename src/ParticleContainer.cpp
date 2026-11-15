@@ -4,6 +4,8 @@
 #include <cmath>
 #include <span>
 #include <stdexcept>
+#include <spdlog/spdlog.h>
+
 
 #include "utils/VectorUtils.h"
 
@@ -80,6 +82,10 @@ void ParticleContainer::Rebuild() {
         if (keys_[i] == kDropped) continue;
         perm_[cell_particle_count_[keys_[i]]++] = i;
     }
+
+    Index shifted = 0;
+    for (Index j = 0; j < prefix_sum; ++j) shifted += perm_[j] != j;
+    SPDLOG_DEBUG("Rebuild: {} of {} slots shifted", shifted, prefix_sum);
 
     x_.Permutate(perm_, scratch_double_);
     v_.Permutate(perm_, scratch_double_);
