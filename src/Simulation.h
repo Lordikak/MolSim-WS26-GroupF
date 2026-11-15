@@ -20,12 +20,18 @@ struct SimulationSettings {
 
 namespace detail {
 inline void CalculateX(ParticleContainer &particles, const double delta_t) {
-    for (auto p : particles) {
+    const auto n = static_cast<std::int64_t>(particles.size());
+#pragma omp parallel for schedule(static)
+    for (std::int64_t i = 0; i < n; ++i) {
+        ParticleRef p(particles, i);
         p.SetX(p.x() + delta_t * p.v() + (delta_t * delta_t / (2 * p.m())) * p.f());
     }
 }
 inline void CalculateV(ParticleContainer &particles, const double delta_t) {
-    for (auto p : particles) {
+    const auto n = static_cast<std::int64_t>(particles.size());
+#pragma omp parallel for schedule(static)
+    for (std::int64_t i = 0; i < n; ++i) {
+        ParticleRef p(particles, i);
         p.SetV(p.v() + delta_t * (p.f() + p.old_f()) / (2 * p.m()));
     }
 }
@@ -74,8 +80,10 @@ class Simulation {
 template <PairKernel Kernel>
 void Simulation<Kernel>::CalculateF() {
     particles_.Rebuild();
-    // store old force in old_f and reset it, as it is calculated in the next step
-    for (auto p : particles_) {
+    const auto n = static_cast<std::int64_t>(particles_.size());
+#pragma omp parallel for schedule(static)
+    for (std::int64_t i = 0; i < n; ++i) {
+        ParticleRef p(particles_, i);
         p.SetOldF(p.f());
         p.SetF(Vec3{});
     }

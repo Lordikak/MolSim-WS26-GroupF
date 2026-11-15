@@ -190,7 +190,7 @@ class ParticleContainer {
 
    private:
     template <PairKernel Kernel>
-    void PairsWithin(Kernel kernel, Index start, Index end);
+    void PairsWithinAndNext(Kernel kernel, Index start, Index end, Index next_end);
     template <PairKernel Kernel>
     void PairsBetween(Kernel kernel, Index a_start, Index a_end, Index b_start, Index b_end);
     template <PairKernel Kernel>
@@ -355,7 +355,7 @@ class ParticleContainer {
 };
 
 template <PairKernel Kernel>
-void ParticleContainer::PairsWithin(const Kernel kernel, const Index start, const Index end) {
+void ParticleContainer::PairsWithinAndNext(const Kernel kernel, const Index start, const Index end, const Index next_end) {
     for (Index i = start; i < end; ++i) {
         const ParticleRef<const ParticleContainer> p_i(*this, i);
         Vec3 f_i{};
@@ -363,7 +363,7 @@ void ParticleContainer::PairsWithin(const Kernel kernel, const Index start, cons
         // Safe because every j > i is visited once per i. F_j is written so the write locations
         // dont overlap and only reads the Force it writes to in the same iteration
         INDEPENDENT_ITERATIONS
-        for (Index j = i + 1; j < end; j++) {
+        for (Index j = i + 1; j < next_end; j++) {
             const ParticleRef<const ParticleContainer> p_j(*this, j);
             const Vec3 f_ij = kernel(p_i, p_j);
             f_i = f_i + f_ij;
@@ -377,7 +377,7 @@ template <PairKernel Kernel>
 void ParticleContainer::PairsBetween(const Kernel kernel, const Index a_start, const Index a_end,
                                      const Index b_start, const Index b_end) {
     assert(a_end <= b_start || b_end <= a_start);
-
+    if (b_start == b_end) return;
     for (Index i = a_start; i < a_end; ++i) {
         const ParticleRef<const ParticleContainer> p_i(*this, i);
         Vec3 f_i{};
@@ -394,7 +394,7 @@ void ParticleContainer::PairsBetween(const Kernel kernel, const Index a_start, c
 }
 template <PairKernel Kernel>
 void ParticleContainer::PairsOfCell(const Kernel kernel, const Index c) {
-    PairsWithin(kernel, cell_start_[c], cell_start_[c + 1]);
+    PairsWithinAndNext(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c + 2]);
     const Index w = grid_.Count()[0];
     const Index h = grid_.Count()[1];
 
@@ -406,9 +406,6 @@ void ParticleContainer::PairsOfCell(const Kernel kernel, const Index c) {
                  cell_start_[c - 1 + w * h + w + 3]);
     PairsBetween(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c - 1 + w],
                  cell_start_[c - 1 + w + 3]);
-
-    PairsBetween(kernel, cell_start_[c], cell_start_[c + 1], cell_start_[c + 1],
-                 cell_start_[c + 2]);
 }
 
 #undef INDEPENDENT_ITERATIONS
