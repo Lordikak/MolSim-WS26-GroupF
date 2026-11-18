@@ -1,8 +1,11 @@
 #pragma once
+#include <cassert>
 #include <concepts>
+#include <cstdint>
 #include <type_traits>
 #include <vector>
 
+#include "utils/Index.h"
 #include "utils/Vec3.h"
 
 /**
@@ -15,6 +18,8 @@
  */
 #if defined(__clang__)
 #define INDEPENDENT_ITERATIONS _Pragma("clang loop vectorize(assume_safety)")
+// Maybe "clang loop vectorize(assume_safety) vectorize_predicate(enable) interleave_count(1)" (So
+// it doesnt have the remainder loop)
 #elif defined(__GNUC__)
 #define INDEPENDENT_ITERATIONS _Pragma("GCC ivdep")
 #else
@@ -70,6 +75,12 @@ class ParticleRef {
     /// @}
 };
 
+class ParticleContainer;
+
+template <class K>
+concept PairKernel = std::is_invocable_r_v<Vec3, K, ParticleRef<const ParticleContainer>,
+                                           ParticleRef<const ParticleContainer>>;
+
 /**
  * @brief Forward iterator over all particles of a container
  *
@@ -113,6 +124,48 @@ class ParticleIterator {
     bool operator==(const ParticleIterator &other) const { return index_ == other.index_; }
 };
 
+using CellCoords = std::array<Index, 3>;
+using CellOffset = std::array<std::int32_t, 3>;
+
+inline CellCoords operator+(const CellCoords &c, const CellOffset &o) {
+    return {static_cast<Index>(static_cast<std::int32_t>(c[0]) + o[0]),
+            static_cast<Index>(static_cast<std::int32_t>(c[1]) + o[1]),
+            static_cast<Index>(static_cast<std::int32_t>(c[2]) + o[2])};
+}
+
+// TODO: Implement these (Currently everything is outflow) (Ghost particles for Reflecting needs to
+// be added)
+enum class Face : std::uint8_t { kXMin, kXMax, kYMin, kYMax, kZMin, kZMax };
+enum class BoundaryCondition : std::uint8_t { kOutflow, kReflecting };
+
+constexpr auto kF64Inf = std::numeric_limits<double>::infinity();
+
+class CellGrid {
+    Vec3 domain_min_, domain_max_;
+    std::array<Index, 3> count_;  // Includes halo
+    Vec3 cell_size_, inv_cell_size_;
+    Index cell_count_;
+
+   public:
+    CellGrid()
+        : domain_min_{},
+          domain_max_{},
+          count_{3, 3, 3},
+          cell_size_{kF64Inf, kF64Inf, kF64Inf},
+          inv_cell_size_{},
+          cell_count_(27) {}
+    CellGrid(Vec3 min, Vec3 max, double r_cutoff);
+    [[nodiscard]] CellCoords CellOf(const Vec3 &x) const;
+    [[nodiscard]] Index LinearIndex(const CellCoords &c) const {
+        return c[0] + count_[0] * (c[1] + count_[1] * c[2]);
+    }
+    [[nodiscard]] CellCoords VecIndex(Index c) const;
+    [[nodiscard]] bool IsHalo(Index c) const;
+    [[nodiscard]] bool IsHalo(const CellCoords &c) const;
+    [[nodiscard]] Index CellCount() const { return cell_count_; }
+    [[nodiscard]] std::array<Index, 3> const &Count() const { return count_; }
+};
+
 /**
  * @brief Stores Particles in a Structure of Arrays (SoA)
  *
@@ -132,7 +185,35 @@ class ParticleContainer {
     std::vector<double> m_;  ///< masses
     std::vector<int> type_;  ///< types
 
+    std::vector<Index> cell_start_;
+    CellGrid grid_;
+
+    std::vector<Index> cell_particle_count_;  // this is only here so it doesnt need to get reallocd
+                                              // each force calc.
+    std::vector<Index> keys_;                 // Also to keep as scratch vector
+    std::vector<Index> perm_;
+    std::vector<double> scratch_double_;
+    std::vector<int> scratch_int_;
+
+   private:
+    template <PairKernel Kernel>
+    void PairsWithinAndNext(Kernel kernel, Index start, Index end, Index next_end);
+    template <PairKernel Kernel>
+    void PairsBetween(Kernel kernel, Index a_start, Index a_end, Index b_start, Index b_end);
+    template <PairKernel Kernel>
+    void PairsOfCell(Kernel kernel, CellCoords c);
+
+    [[nodiscard]] Index end(const CellCoords cell_index) const {
+        return cell_start_[grid_.LinearIndex(cell_index) + 1];
+    }
+    [[nodiscard]] Index start(const CellCoords cell_index) const {
+        return cell_start_[grid_.LinearIndex(cell_index)];
+    }
+
    public:
+    ParticleContainer() = default;
+    explicit ParticleContainer(CellGrid grid) : grid_(std::move(grid)) {}
+
     /// @name Iteration
     /// @{
 
@@ -214,27 +295,42 @@ class ParticleContainer {
      *
      * @param kernel Returns the force acting on @p p_i by @p p_j
      */
-    template <class Kernel>
-        requires std::is_invocable_r_v<Vec3, Kernel, ParticleRef<const ParticleContainer>,
-                                       ParticleRef<const ParticleContainer>>
+    template <PairKernel Kernel>
     void ApplyPairForces(const Kernel kernel) {
-        const std::size_t n = size();
-        for (std::size_t i = 0; i < n; ++i) {
-            const ParticleRef<const ParticleContainer> p_i(*this, i);
-            Vec3 f_i{};
-
-            // Safe because every j > i is visited once per i. F_j is written so the write locations
-            // dont overlap and only reads the Force it writes to in the same iteration
-            INDEPENDENT_ITERATIONS
-            for (std::size_t j = i + 1; j < n; j++) {
-                const ParticleRef<const ParticleContainer> p_j(*this, j);
-                const Vec3 f_ij = kernel(p_i, p_j);
-                f_i = f_i + f_ij;
-                f_.set(j, f_.get(j) - f_ij);
+#ifndef _OPENMP
+        const CellCoords count = grid_.Count();
+        for (Index z = 1; z < count[2] - 1; ++z) {
+            for (Index y = 1; y < count[1] - 1; ++y) {
+                for (Index x = 1; x < count[0] - 1; ++x) {
+                    PairsOfCell(kernel, {x, y, z});
+                }
             }
-            f_.set(i, f_.get(i) + f_i);
         }
+#else
+
+        const CellCoords count = grid_.Count();
+
+#pragma omp parallel
+        for (Index z_offset = 0; z_offset < 3; ++z_offset) {
+            for (Index y_offset = 0; y_offset < 2; ++y_offset) {
+                const Index y_job_count = (count[1] - 1 - y_offset) / 2;
+                const Index z_job_count = (count[2] - z_offset) / 3;
+#pragma omp for schedule(dynamic)
+                for (Index i = 0; i < y_job_count * z_job_count; ++i) {
+                    Index y = (i % y_job_count) * 2 + 1 + y_offset;
+                    Index z = (i / y_job_count) * 3 + 1 + z_offset;
+
+                    for (Index x = 1; x < count[0] - 1; ++x) {
+                        PairsOfCell(kernel, {x, y, z});
+                    }
+                }
+            }
+        }
+
+#endif
     }
+
+    void Rebuild();
 
     /**
      * @brief Calculate the total energy across the system. Method used for testing.
@@ -244,7 +340,7 @@ class ParticleContainer {
      * once per unordered pair
      *
      * @param kernel Adds the potential between @p p_i and @p p_j to the accumulator @p energy
-     * @param energy Reference to the accumulator for total system energy
+     * @return The total potential energy
      */
     template <class Kernel>
         requires requires(const Kernel m, ParticleRef<const ParticleContainer> a,
@@ -271,5 +367,54 @@ class ParticleContainer {
         return energy;
     }
 };
+
+template <PairKernel Kernel>
+void ParticleContainer::PairsWithinAndNext(const Kernel kernel, const Index start, const Index end,
+                                           const Index next_end) {
+    for (Index i = start; i < end; ++i) {
+        const ParticleRef<const ParticleContainer> p_i(*this, i);
+        Vec3 f_i{};
+
+        // Safe because every j > i is visited once per i. F_j is written so the write locations
+        // dont overlap and only reads the Force it writes to in the same iteration
+        INDEPENDENT_ITERATIONS
+        for (Index j = i + 1; j < next_end; j++) {
+            const ParticleRef<const ParticleContainer> p_j(*this, j);
+            const Vec3 f_ij = kernel(p_i, p_j);
+            f_i = f_i + f_ij;
+            f_.set(j, f_.get(j) - f_ij);
+        }
+        f_.set(i, f_.get(i) + f_i);
+    }
+}
+
+template <PairKernel Kernel>
+void ParticleContainer::PairsBetween(const Kernel kernel, const Index a_start, const Index a_end,
+                                     const Index b_start, const Index b_end) {
+    assert(a_end <= b_start || b_end <= a_start);
+    if (b_start == b_end) return;
+    for (Index i = a_start; i < a_end; ++i) {
+        const ParticleRef<const ParticleContainer> p_i(*this, i);
+        Vec3 f_i{};
+        // Safe when used correctly (see assert)
+        INDEPENDENT_ITERATIONS
+        for (Index j = b_start; j < b_end; j++) {
+            const ParticleRef<const ParticleContainer> p_j(*this, j);
+            const Vec3 f_ij = kernel(p_i, p_j);
+            f_i = f_i + f_ij;
+            f_.set(j, f_.get(j) - f_ij);
+        }
+        f_.set(i, f_.get(i) + f_i);
+    }
+}
+template <PairKernel Kernel>
+void ParticleContainer::PairsOfCell(const Kernel kernel, const CellCoords c) {
+    PairsWithinAndNext(kernel, start(c), end(c), end(c + CellCoords{1, 0, 0}));
+
+    for (auto row : {CellOffset{-1, 1, -1}, CellOffset{-1, 0, 1}, CellOffset{-1, 1, 1},
+                     CellOffset{-1, 1, 0}}) {
+        PairsBetween(kernel, start(c), end(c), start(c + row), end(c + row + CellOffset{2, 0, 0}));
+    }
+}
 
 #undef INDEPENDENT_ITERATIONS

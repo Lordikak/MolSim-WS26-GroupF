@@ -1,7 +1,11 @@
 #pragma once
 #include <array>
 #include <cstddef>
+#include <span>
 #include <vector>
+
+#include "Index.h"
+#include "VectorUtils.h"
 
 /**
  * @brief Array of Growable Vectors
@@ -60,6 +64,12 @@ class ArrayVector {
     void set(std::size_t i, const std::array<T, N> &value) {
         for (std::size_t d = 0; d < N; ++d) {
             values_[d][i] = value[d];
+        }
+    }
+
+    void Permutate(std::span<const Index> perm, std::vector<T> &scratch) {
+        for (std::size_t i = 0; i < N; ++i) {
+            vector_utils::Permutate(values_[i], perm, scratch);
         }
     }
 };
