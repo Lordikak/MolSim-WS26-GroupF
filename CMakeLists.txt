@@ -69,3 +69,4 @@ target_link_libraries(MolSim PRIVATE Lib)
 
 include(openmp)
 include(tests)
+include(yaml)

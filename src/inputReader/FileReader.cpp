@@ -6,6 +6,7 @@
 
 #include "JsonReader.h"
 #include "TxtReader.h"
+#include "YamlReader.h"
 
 namespace file_reader {
 
@@ -18,6 +19,9 @@ std::unique_ptr<FileReader> FileReader::MakeReader(const std::string &file_path)
     }
     if (extension == ".json") {
         return std::make_unique<JsonReader>(file_path);
+    }
+    if (extension == ".yml" || extension == ".yaml") {
+        return std::make_unique<YamlReader>(file_path);
     }
 
     throw std::invalid_argument("Unsupported input file type: " + extension);

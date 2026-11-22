@@ -94,6 +94,12 @@ Contains a cuboids array; each cuboid defines its origin, particle counts, grid 
 
 Example in `input/eingabe-2bodies-lennard-jones.json`
 
+### YAML Input
+
+Contains cuboid arrays with identical definition to above. Reads boundary behavior specification e.g. Outflow or Reflection.
+
+Example in `jndoshousioish`
+
 ### TXT Input
 
 A list of positions, velocities, and masses
