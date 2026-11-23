@@ -339,7 +339,7 @@ class ParticleContainer {
      * Kinetic energy is calculated for each particle, while Potential energy is calculated only
      * once per unordered pair
      *
-     * @param kernel Adds the potential between @p p_i and @p p_j to the accumulator @p energy
+     * @param kernel Adds the potential between @p p_i and @p p_j
      * @return The total potential energy
      */
     template <class Kernel>

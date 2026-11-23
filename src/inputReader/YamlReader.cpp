@@ -39,8 +39,9 @@ std::size_t ReadPositiveCount(const YAML::Node &value, const std::string &field_
         }
 
         return static_cast<std::size_t>(count);
-    } catch (const YAML::BadConversion) {
-        throw std::invalid_argument("'" + field_name + "' must be a string");
+    } catch (const YAML::BadConversion &e) {
+        throw std::invalid_argument("'" + field_name + "' must be a string" +
+                                    std::string(e.what()));
     }
 }
 
@@ -91,6 +92,69 @@ void GenerateParticlesInCuboid(ParticleContainer &particles, const YAML::Node &c
     }
 }
 
+void GenerateParticlesInDisc(ParticleContainer &particles, const YAML::Node &disc) {
+    const Vec3 origin = ReadVec3(disc["origin"], "origin");
+    const Vec3 initial_velocity = ReadVec3(disc["initial_velocity"], "initial_velocity");
+
+    const double radius = disc["radius"].as<double>();
+
+    if (radius <= 0.0) {
+        throw std::invalid_argument("'radius' must be a positive double");
+    }
+
+    const std::size_t height = disc["height"].as<int>();
+    if (!std::isfinite(height) || height <= 0) {
+        throw std::invalid_argument("'height' must be a positive integer");
+    }
+
+    const double spacing = disc["spacing"].as<double>();
+    if (!std::isfinite(spacing) || spacing <= 0.0) {
+        throw std::invalid_argument("'spacing' must be finite and greater than zero");
+    }
+
+    const double mass = disc["mass"].as<double>();
+    if (!std::isfinite(mass) || mass <= 0.0) {
+        throw std::invalid_argument("'mass' must be finite and greater than zero");
+    }
+
+    const double average_velocity = disc["average_velocity"].as<double>();
+    if (!std::isfinite(average_velocity) || average_velocity < 0.0) {
+        throw std::invalid_argument("'average_velocity' must be equal or greater than zero");
+    }
+
+    SPDLOG_DEBUG("Disc centered at {}: radius {}, h = {}, m = {}", origin, radius, spacing, mass);
+
+    // calculate and save the radius squared distance. Avoid overflows
+    const long long r2 = radius * radius;
+
+    // consider a square of length 2 * radius
+    for (int i = -radius; i <= radius; ++i) {
+        for (int j = -radius; j <= radius; ++j) {
+            for (std::size_t k = 0; k < height; ++k) {
+                // if distance from center leq to radius, initialize
+                // avoid sqrt
+                if (i * i + j * j <= r2) {
+                    Vec3 position{origin[0] + static_cast<double>(i) * spacing,
+                                  origin[1] + static_cast<double>(j) * spacing,
+                                  origin[2] + static_cast<double>(k) * spacing};
+
+                    auto random_velocity = maxwellBoltzmannDistributedVelocity(average_velocity, 2);
+
+                    Vec3 velocity = initial_velocity + random_velocity;
+
+                    particles.add(position, velocity, mass);
+                }
+            }
+        }
+    }
+}
+
+// void initialize_faces(ParticleContainer &particles, const YAML::Node &config) {
+//
+// }
+//
+// }
+
 }  // namespace
 
 void YamlReader::Read(ParticleContainer &particles) {
@@ -110,5 +174,25 @@ void YamlReader::Read(ParticleContainer &particles) {
     for (const auto &cuboid : cuboids) {
         GenerateParticlesInCuboid(particles, cuboid);
     }
+
+    const auto &discs = config["discs"];
+    if (!discs.IsSequence()) {
+        throw std::invalid_argument("'discs' must be an array");
+    }
+
+    SPDLOG_DEBUG("Reading {} discs from {}", discs.size(), file_path_);
+
+    for (const auto &disc : discs) {
+        GenerateParticlesInDisc(particles, disc);
+    }
+
+    // read cutoff
+    if (config["cutoff"].as<double>() <= 0.0) {
+        throw std::invalid_argument("'cutoff' must be greater than zero");
+    }
+
+    // read domain bounds and boundary conditions
+    Vec3 min_bounds = ReadVec3(discs["bounds_minimum"], "bounds_minimum");
+    Vec3 max_bounds = ReadVec3(discs["bounds_maximum"], "bounds_maximum");
 }
 }  // namespace file_reader
