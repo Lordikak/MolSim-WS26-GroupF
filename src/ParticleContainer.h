@@ -1,7 +1,13 @@
 #pragma once
+#include <omp.h>
+
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <type_traits>
 #include <vector>
 
@@ -124,21 +130,37 @@ class ParticleIterator {
     bool operator==(const ParticleIterator &other) const { return index_ == other.index_; }
 };
 
+// TODO: Implement these (Currently everything is outflow) (Ghost particles for Reflecting needs to
+// be added)
+enum class Face : std::uint8_t { kXMin, kXMax, kYMin, kYMax, kZMin, kZMax };
+enum class BoundaryCondition : std::uint8_t { kOutflow, kReflecting };
+
+struct BoundaryConditions {
+    std::array<BoundaryCondition, 6> by_face{
+        BoundaryCondition::kOutflow,  // kXMin
+        BoundaryCondition::kOutflow,  // kXMax
+        BoundaryCondition::kOutflow,  // kYMin
+        BoundaryCondition::kOutflow,  // kYMax
+        BoundaryCondition::kOutflow,  // kZMin
+        BoundaryCondition::kOutflow   // kZMax
+    };
+
+    [[nodiscard]] BoundaryCondition For(Face face) const {
+        return by_face[static_cast<std::size_t>(face)];
+    }
+};
+
+constexpr auto kF64Inf = std::numeric_limits<double>::infinity();
+
 using CellCoords = std::array<Index, 3>;
 using CellOffset = std::array<std::int32_t, 3>;
+using CellStrip = std::tuple<CellCoords, CellCoords, Face>;
 
 inline CellCoords operator+(const CellCoords &c, const CellOffset &o) {
     return {static_cast<Index>(static_cast<std::int32_t>(c[0]) + o[0]),
             static_cast<Index>(static_cast<std::int32_t>(c[1]) + o[1]),
             static_cast<Index>(static_cast<std::int32_t>(c[2]) + o[2])};
 }
-
-// TODO: Implement these (Currently everything is outflow) (Ghost particles for Reflecting needs to
-// be added)
-enum class Face : std::uint8_t { kXMin, kXMax, kYMin, kYMax, kZMin, kZMax };
-enum class BoundaryCondition : std::uint8_t { kOutflow, kReflecting };
-
-constexpr auto kF64Inf = std::numeric_limits<double>::infinity();
 
 class CellGrid {
     Vec3 domain_min_, domain_max_;
@@ -164,6 +186,60 @@ class CellGrid {
     [[nodiscard]] bool IsHalo(const CellCoords &c) const;
     [[nodiscard]] Index CellCount() const { return cell_count_; }
     [[nodiscard]] std::array<Index, 3> const &Count() const { return count_; }
+    [[nodiscard]] const Vec3 &DomainMin() const { return domain_min_; }
+    [[nodiscard]] const Vec3 &DomainMax() const { return domain_max_; }
+
+    /// @brief Returns x-directed boundary strips for reflecting faces only.
+    /// @details Strips cover the interior boundary cells and exclude halo cells.
+    ///          Y- and Z-facing strips run along X; X-facing strips contain one cell.
+    ///          Cells on edges and corners may appear in multiple strips, once for
+    ///          each adjoining reflecting face.
+    /// @param boundaries Boundary conditions used to select which faces to include.
+    /// @return Boundary strips associated with reflecting faces.
+    [[nodiscard]] std::vector<CellStrip> EdgeStripsAlongX(
+        const BoundaryConditions &boundaries) const {
+        std::vector<CellStrip> strips;
+
+        const Index x_min = 1;
+        const Index x_max = count_[0] - 2;
+        const Index y_min = 1;
+        const Index y_max = count_[1] - 2;
+        const Index z_min = 1;
+        const Index z_max = count_[2] - 2;
+
+        const auto add_if_reflecting = [&strips, &boundaries](const CellCoords &first,
+                                                              const CellCoords &last, Face face) {
+            if (boundaries.For(face) == BoundaryCondition::kReflecting) {
+                strips.emplace_back(first, last, face);
+            }
+        };
+
+        // Y-facing surfaces: x-directed strips, one for each z coordinate.
+        for (Index z = z_min; z <= z_max; ++z) {
+            add_if_reflecting(CellCoords{x_min, y_min, z}, CellCoords{x_max, y_min, z},
+                              Face::kYMin);
+            add_if_reflecting(CellCoords{x_min, y_max, z}, CellCoords{x_max, y_max, z},
+                              Face::kYMax);
+        }
+
+        // Z-facing surfaces: x-directed strips, one for each y coordinate.
+        for (Index y = y_min; y <= y_max; ++y) {
+            add_if_reflecting(CellCoords{x_min, y, z_min}, CellCoords{x_max, y, z_min},
+                              Face::kZMin);
+            add_if_reflecting(CellCoords{x_min, y, z_max}, CellCoords{x_max, y, z_max},
+                              Face::kZMax);
+        }
+
+        // X-facing surfaces: each cell is a single-cell strip.
+        for (Index z = z_min; z <= z_max; ++z) {
+            for (Index y = y_min; y <= y_max; ++y) {
+                add_if_reflecting(CellCoords{x_min, y, z}, CellCoords{x_min, y, z}, Face::kXMin);
+                add_if_reflecting(CellCoords{x_max, y, z}, CellCoords{x_max, y, z}, Face::kXMax);
+            }
+        }
+
+        return strips;
+    }
 };
 
 /**
@@ -187,6 +263,15 @@ class ParticleContainer {
 
     std::vector<Index> cell_start_;
     CellGrid grid_;
+
+    BoundaryConditions boundary_conditions_{{
+        BoundaryCondition::kReflecting,  // kXMin
+        BoundaryCondition::kReflecting,  // kXMax
+        BoundaryCondition::kReflecting,  // kYMin
+        BoundaryCondition::kReflecting,  // kYMax
+        BoundaryCondition::kReflecting,  // kZMin
+        BoundaryCondition::kReflecting   // kZMax
+    }};
 
     std::vector<Index> cell_particle_count_;  // this is only here so it doesnt need to get reallocd
                                               // each force calc.
@@ -329,6 +414,132 @@ class ParticleContainer {
 
 #endif
     }
+
+    //-------------------
+
+    // Mirror a particle's position across the selected domain face.
+    Vec3 GhostParticlePosition(const Vec3 &position, Face face) const {
+        Vec3 ghost_x = position;
+        std::size_t axis = 0;
+        double boundary = 0.0;
+
+        switch (face) {
+            case Face::kXMin:
+                axis = 0;
+                boundary = grid_.DomainMin()[0];
+                break;
+            case Face::kXMax:
+                axis = 0;
+                boundary = grid_.DomainMax()[0];
+                break;
+            case Face::kYMin:
+                axis = 1;
+                boundary = grid_.DomainMin()[1];
+                break;
+            case Face::kYMax:
+                axis = 1;
+                boundary = grid_.DomainMax()[1];
+                break;
+            case Face::kZMin:
+                axis = 2;
+                boundary = grid_.DomainMin()[2];
+                break;
+            case Face::kZMax:
+                axis = 2;
+                boundary = grid_.DomainMax()[2];
+                break;
+            default:
+                return position;
+        }
+
+        ghost_x[axis] = 2.0 * boundary - ghost_x[axis];
+        return ghost_x;
+    }
+
+    // Calculate the repulsive force between a particle and its ghost.
+    Vec3 GhostRepulsiveForce(const Vec3 &position, const Vec3 &ghost_x) const {
+        const Vec3 delta_x = ghost_x - position;
+        const double r2 = ArrayUtils::L2NormSquared(delta_x);
+
+        // TODO: Replace these temporary values with the simulation parameters.
+        const double r_cutoff = std::numeric_limits<double>::infinity();
+        const double sigma = 1.0;
+        const double epsilon = 5.0;
+
+        if (r2 == 0.0 || r2 >= r_cutoff * r_cutoff) {
+            return Vec3{};
+        }
+
+        const double inv_r2 = 1.0 / r2;
+        const double s2 = sigma * sigma * inv_r2;
+        const double s6 = s2 * s2 * s2;
+        const double s12 = s6 * s6;
+        const double scale = -48.0 * epsilon * inv_r2 * s12;
+
+        return scale * delta_x;
+    }
+
+    // Find the mirrored ghost position, then calculate its repulsive force.
+    Vec3 GhostForce(auto p_i, Face face) const {
+        const Vec3 position = p_i.x();
+        const Vec3 ghost_x = GhostParticlePosition(position, face);
+        return GhostRepulsiveForce(position, ghost_x);
+    }
+
+    void GhostParticleBoundryForce(Index a_start, Index a_end, Face face) {
+        for (Index i = a_start; i < a_end; ++i) {
+            const ParticleRef<const ParticleContainer> p_i(*this, i);
+            const Vec3 f_i = GhostForce(p_i, face);
+            f_.set(i, f_.get(i) + f_i);
+        }
+    }
+
+    void ApplyBoundryForces() {
+#pragma omp parallel for schedule(dynamic)
+        for (const auto &[first, last, face] : grid_.EdgeStripsAlongX(boundary_conditions_)) {
+            GhostParticleBoundryForce(start(first), end(last), face);
+        }
+    }
+
+    void ApplyGravity(Index index_start, Index index_end, const Vec3 &gravity) {
+        for (Index i = index_start; i < index_end; ++i) {
+            const Vec3 gravity_force = m_[i] * gravity;
+            f_.set(i, f_.get(i) + gravity_force);
+        }
+    }
+
+    void ApplyExternalForces() {
+        const Index total = size();
+        if (total == 0) {
+            return;
+        }
+
+        const Index num_parts = std::min(total, static_cast<Index>(omp_get_max_threads()));
+
+        std::vector<std::pair<Index, Index>> ranges;
+        ranges.reserve(num_parts);
+
+        const Index base = total / num_parts;
+        const Index remainder = total % num_parts;
+
+        Index start = 0;
+        for (Index part = 0; part < num_parts; ++part) {
+            const Index count = base + (part < remainder ? 1 : 0);
+            const Index end = start + count;
+
+            ranges.emplace_back(start, end);
+            start = end;
+        }
+
+        const Vec3 gravity{0.0, 0.0, -3.0};
+
+#pragma omp parallel for schedule(static)
+        for (std::size_t part = 0; part < ranges.size(); ++part) {
+            ApplyGravity(ranges[part].first, ranges[part].second, gravity);
+        }
+    }
+
+    //-------------------
 
     void Rebuild();
 

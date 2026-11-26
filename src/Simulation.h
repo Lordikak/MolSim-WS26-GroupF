@@ -89,6 +89,8 @@ void Simulation<Kernel>::CalculateF() {
     }
 
     particles_.ApplyPairForces(kernel_);
+    particles_.ApplyBoundryForces();
+    particles_.ApplyExternalForces();
 }
 
 template <PairKernel Kernel>
@@ -108,6 +110,7 @@ void Simulation<Kernel>::Run(
     for (int iteration = 1; iteration <= iteration_count; ++iteration) {
         detail::CalculateX(particles_, settings_.delta_t);
         CalculateF();
+
         detail::CalculateV(particles_, settings_.delta_t);
 
         const double cur_time = settings_.start_time + settings_.delta_t * iteration;
