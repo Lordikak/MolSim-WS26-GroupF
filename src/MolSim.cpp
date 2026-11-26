@@ -7,6 +7,7 @@
 #include <string>
 
 #include "Simulation.h"
+#include "SimulationConfig.h"
 #include "inputReader/FileReader.h"
 #include "outputWriter/OutputWriter.h"
 #include "utils/Logging.h"
@@ -91,26 +92,15 @@ int main(int argc, char *argsv[]) {
 
     SPDLOG_INFO("MolSim started");
 
-    // TODO: Get those values from the input reader
-
-    constexpr double kRCutoff = 3.0;
-
-    CellGrid grid({0, 0, -0.5}, {180, 90, 0.5}, kRCutoff);
-
-    ParticleContainer particles(std::move(grid));
+    // define the config specification
+    SimulationSpec spec;
     try {
         auto reader = file_reader::FileReader::MakeReader(file_path);
-        reader->Read(particles);
+        spec = reader->Read(SimulationSettings{start_time, end_time, delta_t});
     } catch (const std::exception &e) {
         SPDLOG_ERROR("Could not read input: {}", e.what());
         return 1;
     }
-
-    if (particles.size() == 0) {
-        SPDLOG_WARN("No particles to simulate");
-    }
-
-    SPDLOG_INFO("Simulation with {} particles.", particles.size());
 
     // Add default writers
     if (output_formats.empty()) {
@@ -124,7 +114,7 @@ int main(int argc, char *argsv[]) {
         writers.push_back(output_writer::OutputWriter::MakeWriter(format, out_dir, out_name));
     }
 
-    ProgressBar bar{start_time, end_time};
+    ProgressBar bar{spec.settings.start_time, spec.settings.end_time};
 
     const auto post_iter = [&writers, write_every, &bar](const ParticleContainer &p,
                                                          const int iteration, const double time) {
@@ -140,7 +130,9 @@ int main(int argc, char *argsv[]) {
                                      : StepCallback{post_iter};
 
     simulation::Simulation sim{
-        std::move(particles), {start_time, end_time, delta_t}, LennardJones{.r_cutoff = kRCutoff}};
+        spec,
+        LennardJones{.r_cutoff = spec.domain.cutoff},
+    };
 
     const auto start = std::chrono::steady_clock::now();
     sim.Run(on_step);

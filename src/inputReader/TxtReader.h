@@ -10,6 +10,7 @@
 #include <string>
 
 #include "FileReader.h"
+#include "SimulationConfig.h"
 
 namespace file_reader {
 
@@ -50,8 +51,11 @@ class TxtReader final : public FileReader {
      * Exits the program on a malformed file or cant be opened
      *
      * @param particles Container to fill with particle data
+     *
+     * @return SimulationSpec struct containing configuration data for simulation and domain,
+     * along with particle generators
      */
-    void Read(ParticleContainer &particles) override;
+    SimulationSpec Read(ParticleContainer &particles);
 };
 
 }  // namespace file_reader

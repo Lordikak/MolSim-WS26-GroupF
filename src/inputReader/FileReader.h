@@ -5,6 +5,7 @@
 #include <string>
 
 #include "ParticleContainer.h"
+#include "SimulationConfig.h"
 
 namespace file_reader {
 
@@ -18,8 +19,12 @@ class FileReader {
     /**
      * @brief Reads particles from the input file into the container.
      * @param particles Container to which the particles are added.
+     * @param user_defined user defined simulation config settings in the case
+     * that the parsed file does not contain them
+     * @return SimulationSpec struct containing configuration data for simulation and domain,
+     * along with particle generators
      */
-    virtual void Read(ParticleContainer &particles) = 0;
+    virtual SimulationSpec Read(SimulationSettings user_defined) = 0;
 
     /**
      * @brief Factory for a Reader for the filetype (specified in the file_path)

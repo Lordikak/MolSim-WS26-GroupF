@@ -4,19 +4,10 @@
 
 #include "LennardJones.h"
 #include "ParticleContainer.h"
+#include "SimulationConfig.h"
 #include "spdlog/spdlog.h"
 
 namespace simulation {
-/**
- * @brief configuration parameters for a simulation run
- *
- * contains positive arguments start time, end time, and delta t
- */
-struct SimulationSettings {
-    double start_time;
-    double end_time;
-    double delta_t;
-};
 
 namespace detail {
 inline void CalculateX(ParticleContainer &particles, const double delta_t) {
@@ -57,6 +48,15 @@ class Simulation {
     Simulation(ParticleContainer container, const SimulationSettings &settings, Kernel kernel = {})
         : particles_(std::move(container)), settings_(settings), kernel_(std::move(kernel)) {}
 
+    explicit Simulation(SimulationSpec spec, Kernel kernel = {})
+        : particles_{spec.domain}, settings_(spec.settings), kernel_(std::move(kernel)) {
+        std::vector<ParticleData> data;
+        auto cb = [&](const ParticleData &particle) { data.push_back(particle); };
+        for (auto &gen : spec.generators) {
+            gen->ForEach(cb);
+        }
+    }
+
     /**
      * @brief Calculates each iteration of a simulation run
      *
@@ -95,6 +95,10 @@ template <PairKernel Kernel>
 void Simulation<Kernel>::Run(
     const std::function<void(const ParticleContainer &, int, double)> &post_iteration) {
     const int iteration_count = IterationCount();
+
+    if (particles_.size() == 0) {
+        SPDLOG_WARN("No particles to simulate");
+    }
 
     SPDLOG_DEBUG("Starting simulation: t = {} .. {}, dt = {}, {} iterations, {} particles",
                  settings_.start_time, settings_.end_time, settings_.delta_t, iteration_count,

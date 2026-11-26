@@ -5,6 +5,8 @@
 #include <yaml-cpp/yaml.h>
 
 #include "ParticleContainer.h"
+#include "SimulationConfig.h"
+#include "utils/BoundaryFace.h"
 #include "utils/MaxwellBoltzmannDistribution.h"
 
 namespace file_reader {
@@ -45,7 +47,108 @@ std::size_t ReadPositiveCount(const YAML::Node &value, const std::string &field_
     }
 }
 
-void GenerateParticlesInCuboid(ParticleContainer &particles, const YAML::Node &cuboid) {
+double ReadRequiredDouble(const YAML::Node &value, const std::string &field_name) {
+    if (!value.IsScalar()) {
+        throw std::invalid_argument("'" + field_name + "' must be a positive scalar double");
+    }
+
+    // Read the scalar value and attempt to cast to integer
+    try {
+        const double val = value.as<double>();
+        if (val <= 0) {
+            throw std::invalid_argument("'" + field_name + "' must be greater than zero");
+        }
+
+        return val;
+
+    } catch (const YAML::BadConversion &e) {
+        throw std::invalid_argument("'" + field_name + "' must be a string" +
+                                    std::string(e.what()));
+    }
+}
+
+/**
+ * @brief internal parsing and validation for an expected double value
+ * @param value the current parsed yaml node
+ * @param field_name the name of the parsed field
+ * @param default_value user_defined value read from command line.
+ * Used as a fallback value for if the read file does not contain it
+ * @return either the value written in the field or the default provided
+ */
+double ReadPositiveDoubleAgainstDefault(const YAML::Node &value, const std::string &field_name,
+                                        const double default_value) {
+    // if the field is not in the file, return the default
+    if (!value.IsDefined() || value.IsNull()) {
+        return default_value;
+    }
+    // if the field is present but malformed, complain
+    if (!value.IsScalar()) {
+        throw std::invalid_argument("'" + field_name + "' must be a scalar");
+    }
+
+    try {
+        const double val = value.as<double>();
+        if (val <= 0.0) {
+            throw std::invalid_argument("'" + field_name + "' must be a positive double");
+        }
+
+        return static_cast<double>(val);
+    } catch (const YAML::BadConversion &e) {
+        throw std::invalid_argument("'" + field_name + "' must be a string" +
+                                    std::string(e.what()));
+    }
+}
+
+/**
+ * @brief internal enum parsing and conversion method to avoid overloading ::convert
+ * @param value the current parsed yaml node
+ * @param field_name the name of the parsed field
+ * @return the appropriate enum representing the behavior of that boundary face
+ */
+BoundaryCondition ConvertFromScalar(const YAML::Node &value, const std::string &field_name) {
+    if (!value.IsScalar()) {
+        throw std::invalid_argument("'" + field_name + "' must be a scalar");
+    }
+
+    const auto cond = value.as<std::string>();
+
+    if (cond == "outflow") {
+        return BoundaryCondition::kOutflow;
+    } else if (cond == "reflecting") {
+        return BoundaryCondition::kReflecting;
+    } else {
+        throw std::invalid_argument("'" + field_name + "' must either be outflow or reflecting");
+    }
+}
+
+std::array<BoundaryCondition, 6> ReadBoundaryConditions(const YAML::Node &value,
+                                                        const std::string &field_name) {
+    constexpr std::array<std::string_view, 6> kBoundaryKeys = {"min_x", "max_x", "min_y",
+                                                               "max_y", "min_z", "max_z"};
+
+    std::array<BoundaryCondition, 6> result;
+
+    for (std::size_t i = 0; i < kBoundaryKeys.size(); ++i) {
+        const auto node = value[std::string(kBoundaryKeys[i])];
+        std::string key(kBoundaryKeys[i]);
+
+        if (!node.IsDefined() || node.IsNull()) {
+            throw std::invalid_argument("'" + field_name + "' missing from input file");
+        }
+
+        if (!node.IsScalar()) {
+            throw std::invalid_argument("'" + field_name + "' must be a scalar");
+        }
+
+        result[i] = ConvertFromScalar(node, field_name + "." + key);
+    }
+
+    return result;
+}
+
+ParticleCuboid ParseCuboid(const YAML::Node &cuboid) {
+    ParticleCuboid pc;
+
     const Vec3 origin = ReadVec3(cuboid["origin"], "origin");
     const Vec3 initial_velocity = ReadVec3(cuboid["initial_velocity"], "initial_velocity");
 
@@ -57,142 +160,126 @@ void GenerateParticlesInCuboid(ParticleContainer &particles, const YAML::Node &c
     const std::size_t n2 = ReadPositiveCount(counts[1], "particle_counts[1]");
     const std::size_t n3 = ReadPositiveCount(counts[2], "particle_counts[2]");
 
-    const double spacing = cuboid["spacing"].as<double>();
-    if (!std::isfinite(spacing) || spacing <= 0.0) {
-        throw std::invalid_argument("'spacing' must be finite and greater than zero");
-    }
-
-    const double mass = cuboid["mass"].as<double>();
-    if (!std::isfinite(mass) || mass <= 0.0) {
-        throw std::invalid_argument("'mass' must be finite and greater than zero");
-    }
-
-    const double average_velocity = cuboid["average_velocity"].as<double>();
-    if (!std::isfinite(average_velocity) || average_velocity < 0.0) {
-        throw std::invalid_argument("'average_velocity' must be equal or greater than zero");
-    }
+    const double spacing = ReadRequiredDouble(cuboid["spacing"], "spacing");
+    const double mass = ReadRequiredDouble(cuboid["mass"], "mass");
+    const double brownian_velocity =
+        ReadRequiredDouble(cuboid["brownian_velocity"], "brownian_velocity");
 
     SPDLOG_DEBUG("Cuboid at {}: {}x{}x{} particles, h = {}, m = {}", origin, n1, n2, n3, spacing,
                  mass);
 
-    for (std::size_t i = 0; i < n1; ++i) {
-        for (std::size_t j = 0; j < n2; ++j) {
-            for (std::size_t k = 0; k < n3; ++k) {
-                Vec3 position{origin[0] + static_cast<double>(i) * spacing,
-                              origin[1] + static_cast<double>(j) * spacing,
-                              origin[2] + static_cast<double>(k) * spacing};
+    // initialize the particle cuboid and return
+    pc.min = origin;
+    pc.initial_velocity = initial_velocity;
+    pc.dimensions = {n1, n2, n3};
+    pc.spacing = spacing;
+    pc.mass = mass;
+    pc.brownian_velocity = brownian_velocity;
 
-                auto random_velocity = maxwellBoltzmannDistributedVelocity(average_velocity, 2);
-
-                Vec3 velocity = initial_velocity + random_velocity;
-
-                particles.add(position, velocity, mass);
-            }
-        }
-    }
+    return pc;
 }
 
-void GenerateParticlesInDisc(ParticleContainer &particles, const YAML::Node &disc) {
+ParticleDisc ParseDisc(const YAML::Node &disc) {
+    ParticleDisc pd;
+
     const Vec3 origin = ReadVec3(disc["origin"], "origin");
     const Vec3 initial_velocity = ReadVec3(disc["initial_velocity"], "initial_velocity");
 
-    const double radius = disc["radius"].as<double>();
+    const std::size_t radius = ReadPositiveCount(disc["radius"], "radius");
+    const std::size_t height = ReadPositiveCount(disc["height"], "height");
 
-    if (radius <= 0.0) {
-        throw std::invalid_argument("'radius' must be a positive double");
-    }
-
-    const std::size_t height = disc["height"].as<int>();
-    if (!std::isfinite(height) || height <= 0) {
-        throw std::invalid_argument("'height' must be a positive integer");
-    }
-
-    const double spacing = disc["spacing"].as<double>();
-    if (!std::isfinite(spacing) || spacing <= 0.0) {
-        throw std::invalid_argument("'spacing' must be finite and greater than zero");
-    }
-
-    const double mass = disc["mass"].as<double>();
-    if (!std::isfinite(mass) || mass <= 0.0) {
-        throw std::invalid_argument("'mass' must be finite and greater than zero");
-    }
-
-    const double average_velocity = disc["average_velocity"].as<double>();
-    if (!std::isfinite(average_velocity) || average_velocity < 0.0) {
-        throw std::invalid_argument("'average_velocity' must be equal or greater than zero");
-    }
+    const double spacing = ReadRequiredDouble(disc["spacing"], "spacing");
+    const double mass = ReadRequiredDouble(disc["mass"], "mass");
+    const double brownian_velocity =
+        ReadRequiredDouble(disc["brownian_velocity"], "brownian_velocity");
 
     SPDLOG_DEBUG("Disc centered at {}: radius {}, h = {}, m = {}", origin, radius, spacing, mass);
 
-    // calculate and save the radius squared distance. Avoid overflows
-    const long long r2 = radius * radius;
+    pd.center = origin;
+    pd.height = height;
+    pd.initial_velocity = initial_velocity;
+    pd.radius = radius;
+    pd.spacing = spacing;
+    pd.mass = mass;
+    pd.brownian_velocity = brownian_velocity;
 
-    // consider a square of length 2 * radius
-    for (int i = -radius; i <= radius; ++i) {
-        for (int j = -radius; j <= radius; ++j) {
-            for (std::size_t k = 0; k < height; ++k) {
-                // if distance from center leq to radius, initialize
-                // avoid sqrt
-                if (i * i + j * j <= r2) {
-                    Vec3 position{origin[0] + static_cast<double>(i) * spacing,
-                                  origin[1] + static_cast<double>(j) * spacing,
-                                  origin[2] + static_cast<double>(k) * spacing};
-
-                    auto random_velocity = maxwellBoltzmannDistributedVelocity(average_velocity, 2);
-
-                    Vec3 velocity = initial_velocity + random_velocity;
-
-                    particles.add(position, velocity, mass);
-                }
-            }
-        }
-    }
+    return pd;
 }
-
-// void initialize_faces(ParticleContainer &particles, const YAML::Node &config) {
-//
-// }
-//
-// }
 
 }  // namespace
 
-void YamlReader::Read(ParticleContainer &particles) {
+GeneratorVector YamlReader::InitializeGenerators(const YAML::Node &value) {
+    GeneratorVector generators;
+
+    const auto &cuboids = value["cuboids"];
+    const auto &discs = value["discs"];
+
+    if (cuboids.IsDefined()) {
+        if (!cuboids.IsSequence()) {
+            throw std::invalid_argument("'cuboids' must be a sequence");
+        }
+
+        SPDLOG_DEBUG("Reading {} cuboids from {}", cuboids.size(), file_path_);
+
+        for (const auto &cuboid : cuboids) {
+            generators.push_back(std::make_unique<ParticleCuboid>(ParseCuboid(cuboid)));
+        }
+    }
+
+    if (discs.IsDefined()) {
+        if (!discs.IsSequence()) {
+            throw std::invalid_argument("'discs' must be a sequence");
+        }
+
+        SPDLOG_DEBUG("Reading {} discs from {}", discs.size(), file_path_);
+
+        for (const auto &disc : discs) {
+            generators.push_back(std::make_unique<ParticleDisc>(ParseDisc(disc)));
+        }
+    }
+
+    return generators;
+}
+
+SimulationSpec YamlReader::Read(SimulationSettings user_defined) {
     const YAML::Node config = YAML::LoadFile(file_path_);
 
     if (config["version"].as<int>() != 1) {
         throw std::invalid_argument("Unsupported YAML config version");
     }
 
-    const auto &cuboids = config["cuboids"];
-    if (!cuboids.IsSequence()) {
-        throw std::invalid_argument("'cuboids' must be an array");
-    }
+    // initialize generators for each molecule
+    auto generators = InitializeGenerators(config);
 
-    SPDLOG_DEBUG("Reading {} cuboids from {}", cuboids.size(), file_path_);
-
-    for (const auto &cuboid : cuboids) {
-        GenerateParticlesInCuboid(particles, cuboid);
-    }
-
-    const auto &discs = config["discs"];
-    if (!discs.IsSequence()) {
-        throw std::invalid_argument("'discs' must be an array");
-    }
-
-    SPDLOG_DEBUG("Reading {} discs from {}", discs.size(), file_path_);
-
-    for (const auto &disc : discs) {
-        GenerateParticlesInDisc(particles, disc);
-    }
-
-    // read cutoff
-    if (config["cutoff"].as<double>() <= 0.0) {
-        throw std::invalid_argument("'cutoff' must be greater than zero");
-    }
+    // read domain boundary behavior
+    const auto behaviors =
+        ReadBoundaryConditions(config["boundary_conditions"], "boundary_conditions");
 
     // read domain bounds and boundary conditions
-    Vec3 min_bounds = ReadVec3(discs["bounds_minimum"], "bounds_minimum");
-    Vec3 max_bounds = ReadVec3(discs["bounds_maximum"], "bounds_maximum");
+    const Vec3 min_bounds = ReadVec3(config["bounds_minimum"], "bounds_minimum");
+    const Vec3 max_bounds = ReadVec3(config["bounds_maximum"], "bounds_maximum");
+
+    // read cutoff
+    const double cutoff = ReadRequiredDouble(config["cutoff"], "cutoff");
+
+    // read simulation run configuration settings
+    const double start =
+        ReadPositiveDoubleAgainstDefault(config["start"], "start", user_defined.start_time);
+    const double end =
+        ReadPositiveDoubleAgainstDefault(config["end"], "end", user_defined.end_time);
+    if (end >= start) {
+        throw std::invalid_argument("'end' must be a positive double greater than the start time");
+    }
+    const double delta_t =
+        ReadPositiveDoubleAgainstDefault(config["delta_t"], "delta_t", user_defined.delta_t);
+    if (delta_t > end - start) {
+        throw std::invalid_argument("'delta_t' must be less than the duration of the simulation");
+    }
+
+    SimulationSettings ss = SimulationSettings(start, end, delta_t);
+    DomainSettings ds = DomainSettings(min_bounds, max_bounds, cutoff, behaviors);
+    SimulationSpec spec = SimulationSpec(ss, ds, std::move(generators));
+
+    return spec;
 }
 }  // namespace file_reader

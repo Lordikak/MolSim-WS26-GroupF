@@ -4,6 +4,7 @@
 #include <string>
 
 #include "FileReader.h"
+#include "SimulationConfig.h"
 
 namespace file_reader {
 /**
@@ -21,6 +22,13 @@ namespace file_reader {
 class YamlReader final : public FileReader {
     const std::string file_path_;
 
+    /**
+     * @brief initialize the particle generators based on yaml intialization data
+     * @param value the cuboid or disc to be defined
+     * @return a vector of ParticleCuboids and ParticleDiscs to initialize molecules later
+     */
+    static GeneratorVector InitializeGenerators(const YAML::Node &value);
+
    public:
     /**
      * @brief Constructs a reader for the specified YAML file.
@@ -30,8 +38,11 @@ class YamlReader final : public FileReader {
 
     /**
      * @brief Adds particles read from the YAML file to the container.
-     * @param particles Container to which the particles are added.
+     * @param user_defined user defined simulation config settings
+     * in the case that the parsed file does not contain them
+     * @return SimulationSpec struct containing configuration data for simulation and domain,
+     * along with particle generators
      */
-    void Read(ParticleContainer &particles) override;
+    SimulationSpec Read(SimulationSettings user_defined) override;
 };
 }  // namespace file_reader

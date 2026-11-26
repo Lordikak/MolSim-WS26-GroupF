@@ -5,6 +5,7 @@
 
 #include "FileReader.h"
 #include "ParticleContainer.h"
+#include "SimulationConfig.h"
 
 namespace file_reader {
 
@@ -60,9 +61,11 @@ class JsonReader final : public FileReader {
 
     /**
      * @brief Adds particles read from the JSON file to the container.
-     * @param particles Container to which the particles are added.
+     * @param user_defined simulation config settings in the case
+     * that the parsed file  does not contain them
+     * @return
      */
-    void Read(ParticleContainer &particles) override;
+    SimulationSpec Read(SimulationSettings user_defined) override;
 };
 
 }  // namespace file_reader
