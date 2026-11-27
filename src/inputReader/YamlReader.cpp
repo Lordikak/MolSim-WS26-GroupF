@@ -47,7 +47,7 @@ std::size_t ReadPositiveCount(const YAML::Node &value, const std::string &field_
     }
 }
 
-double ReadRequiredDouble(const YAML::Node &value, const std::string &field_name) {
+double ReadPositiveRequiredDouble(const YAML::Node &value, const std::string &field_name) {
     if (!value.IsScalar()) {
         throw std::invalid_argument("'" + field_name + "' must be a positive scalar double");
     }
@@ -56,7 +56,7 @@ double ReadRequiredDouble(const YAML::Node &value, const std::string &field_name
     try {
         const double val = value.as<double>();
         if (val <= 0) {
-            throw std::invalid_argument("'" + field_name + "' must be greater than zero");
+            throw std::invalid_argument("'" + field_name + "' must be a positive double");
         }
 
         return val;
@@ -75,8 +75,8 @@ double ReadRequiredDouble(const YAML::Node &value, const std::string &field_name
  * Used as a fallback value for if the read file does not contain it
  * @return either the value written in the field or the default provided
  */
-double ReadPositiveDoubleAgainstDefault(const YAML::Node &value, const std::string &field_name,
-                                        const double default_value) {
+double ReadNNDoubleAgainstDefault(const YAML::Node &value, const std::string &field_name,
+                                  const double default_value) {
     // if the field is not in the file, return the default
     if (!value.IsDefined() || value.IsNull()) {
         return default_value;
@@ -88,8 +88,8 @@ double ReadPositiveDoubleAgainstDefault(const YAML::Node &value, const std::stri
 
     try {
         const double val = value.as<double>();
-        if (val <= 0.0) {
-            throw std::invalid_argument("'" + field_name + "' must be a positive double");
+        if (val < 0.0) {
+            throw std::invalid_argument("'" + field_name + "' must be a non-negative double");
         }
 
         return static_cast<double>(val);
@@ -152,28 +152,28 @@ ParticleCuboid ParseCuboid(const YAML::Node &cuboid) {
     const Vec3 origin = ReadVec3(cuboid["origin"], "origin");
     const Vec3 initial_velocity = ReadVec3(cuboid["initial_velocity"], "initial_velocity");
 
-    const auto &counts = cuboid["particle_counts"];
+    const auto &counts = cuboid["dimensions"];
     if (!counts.IsSequence() || counts.size() != 3) {
-        throw std::invalid_argument("'particle_counts' must be an array of exactly 3 integers");
+        throw std::invalid_argument("'dimensions' must be an array of exactly 3 integers");
     }
-    const std::size_t n1 = ReadPositiveCount(counts[0], "particle_counts[0]");
-    const std::size_t n2 = ReadPositiveCount(counts[1], "particle_counts[1]");
-    const std::size_t n3 = ReadPositiveCount(counts[2], "particle_counts[2]");
+    const std::size_t n1 = ReadPositiveCount(counts[0], "dimensions[0]");
+    const std::size_t n2 = ReadPositiveCount(counts[1], "dimensions[1]");
+    const std::size_t n3 = ReadPositiveCount(counts[2], "dimensions[2]");
 
-    const double spacing = ReadRequiredDouble(cuboid["spacing"], "spacing");
-    const double mass = ReadRequiredDouble(cuboid["mass"], "mass");
+    const double spacing = ReadPositiveRequiredDouble(cuboid["spacing"], "spacing");
+    const double mass = ReadPositiveRequiredDouble(cuboid["mass"], "mass");
     const double brownian_velocity =
-        ReadRequiredDouble(cuboid["brownian_velocity"], "brownian_velocity");
+        ReadPositiveRequiredDouble(cuboid["brownian_velocity"], "brownian_velocity");
 
     SPDLOG_DEBUG("Cuboid at {}: {}x{}x{} particles, h = {}, m = {}", origin, n1, n2, n3, spacing,
                  mass);
 
     // initialize the particle cuboid and return
     pc.min = origin;
-    pc.initial_velocity = initial_velocity;
     pc.dimensions = {n1, n2, n3};
     pc.spacing = spacing;
     pc.mass = mass;
+    pc.initial_velocity = initial_velocity;
     pc.brownian_velocity = brownian_velocity;
 
     return pc;
@@ -188,19 +188,19 @@ ParticleDisc ParseDisc(const YAML::Node &disc) {
     const std::size_t radius = ReadPositiveCount(disc["radius"], "radius");
     const std::size_t height = ReadPositiveCount(disc["height"], "height");
 
-    const double spacing = ReadRequiredDouble(disc["spacing"], "spacing");
-    const double mass = ReadRequiredDouble(disc["mass"], "mass");
+    const double spacing = ReadPositiveRequiredDouble(disc["spacing"], "spacing");
+    const double mass = ReadPositiveRequiredDouble(disc["mass"], "mass");
     const double brownian_velocity =
-        ReadRequiredDouble(disc["brownian_velocity"], "brownian_velocity");
+        ReadPositiveRequiredDouble(disc["brownian_velocity"], "brownian_velocity");
 
     SPDLOG_DEBUG("Disc centered at {}: radius {}, h = {}, m = {}", origin, radius, spacing, mass);
 
     pd.center = origin;
-    pd.height = height;
-    pd.initial_velocity = initial_velocity;
     pd.radius = radius;
+    pd.height = height;
     pd.spacing = spacing;
     pd.mass = mass;
+    pd.initial_velocity = initial_velocity;
     pd.brownian_velocity = brownian_velocity;
 
     return pd;
@@ -260,18 +260,17 @@ SimulationSpec YamlReader::Read(SimulationSettings user_defined) {
     const Vec3 max_bounds = ReadVec3(config["bounds_maximum"], "bounds_maximum");
 
     // read cutoff
-    const double cutoff = ReadRequiredDouble(config["cutoff"], "cutoff");
+    const double cutoff = ReadPositiveRequiredDouble(config["cutoff"], "cutoff");
 
     // read simulation run configuration settings
     const double start =
-        ReadPositiveDoubleAgainstDefault(config["start"], "start", user_defined.start_time);
-    const double end =
-        ReadPositiveDoubleAgainstDefault(config["end"], "end", user_defined.end_time);
-    if (end >= start) {
+        ReadNNDoubleAgainstDefault(config["start"], "start", user_defined.start_time);
+    const double end = ReadNNDoubleAgainstDefault(config["end"], "end", user_defined.end_time);
+    if (end <= 0 || end <= start) {
         throw std::invalid_argument("'end' must be a positive double greater than the start time");
     }
     const double delta_t =
-        ReadPositiveDoubleAgainstDefault(config["delta_t"], "delta_t", user_defined.delta_t);
+        ReadNNDoubleAgainstDefault(config["delta_t"], "delta_t", user_defined.delta_t);
     if (delta_t > end - start) {
         throw std::invalid_argument("'delta_t' must be less than the duration of the simulation");
     }

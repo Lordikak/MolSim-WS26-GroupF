@@ -130,7 +130,7 @@ int main(int argc, char *argsv[]) {
                                      : StepCallback{post_iter};
 
     simulation::Simulation sim{
-        spec,
+        std::move(spec),
         LennardJones{.r_cutoff = spec.domain.cutoff},
     };
 

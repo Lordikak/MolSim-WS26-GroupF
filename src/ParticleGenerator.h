@@ -23,11 +23,11 @@ using GeneratorVector = std::vector<std::unique_ptr<ParticleGenerator>>;
  */
 struct ParticleCuboid : ParticleGenerator {
     Vec3 min;
-    Vec3 initial_velocity;
     std::array<std::size_t, 3> dimensions;
     double spacing;
     double mass;
 
+    Vec3 initial_velocity;
     double brownian_velocity;
 
     void ForEach(const std::function<void(const ParticleData &)> &call_back) const override {
@@ -53,16 +53,18 @@ struct ParticleCuboid : ParticleGenerator {
 /**
  * @brief initialize a cylindrical molecule
  *
- * constains the location of the center of the lower round face, its height
+ * contains the location of the center of the lower round face, its radius, height
+ * as well as the velocity of the whole cylinder and the spacing between and mass of each particle
+ * contains the mean value of the brownian velocity
  */
 struct ParticleDisc : ParticleGenerator {
     Vec3 center;
-    std::size_t height;
-    Vec3 initial_velocity;
     std::size_t radius;
+    std::size_t height;
     double spacing;
     double mass;
 
+    Vec3 initial_velocity;
     double brownian_velocity;
 
     void ForEach(const std::function<void(const ParticleData &)> &call_back) const override {

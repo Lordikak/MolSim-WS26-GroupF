@@ -51,7 +51,7 @@ class Simulation {
     explicit Simulation(SimulationSpec spec, Kernel kernel = {})
         : particles_{spec.domain}, settings_(spec.settings), kernel_(std::move(kernel)) {
         std::vector<ParticleData> data;
-        auto cb = [&](const ParticleData &particle) { data.push_back(particle); };
+        auto cb = [&](const ParticleData &particle) { particles_.add(particle); };
         for (auto &gen : spec.generators) {
             gen->ForEach(cb);
         }

@@ -235,6 +235,11 @@ class ParticleContainer {
     /// @}
 
     /**
+     * @brief wrapper method for the standard add. Extended to use the ParticleData struct
+     */
+    void add(const ParticleData pd) { add(pd.position, pd.velocity, pd.mass); }
+
+    /**
      * @brief Appends a single particle
      * @param x Position
      * @param v Velocity

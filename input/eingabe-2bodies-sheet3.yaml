@@ -1,18 +1,22 @@
 version: 1
 cuboids:
   - origin: [20, 20, 0.0]
-    particle_counts: [100, 20, 1]
+    dimensions: [100, 20, 1]
     spacing: 1.1225
     mass: 1.0
     initial_velocity: [0.0, 0.0, 0.0]
     brownian_velocity: 0.1
 
   - origin: [70, 60, 0.0]
-    particle_counts: [20, 20, 1]
+    dimensions: [20, 20, 1]
     spacing: 1.1225
     mass: 1.0
     initial_velocity: [0.0, -10, 0.0]
     brownian_velocity: 0.1
+
+bounds_minimum: [0.0, 0.0, 0.0]
+bounds_maximum: [100.0, 100.0, 100.0]
+cutoff: 3.0
 
 boundary_conditions:
   min_x: reflecting
@@ -24,4 +28,4 @@ boundary_conditions:
 
 start: 0.0
 end: 10.0
-delta_t: 0.00005
+delta_t: 0.005

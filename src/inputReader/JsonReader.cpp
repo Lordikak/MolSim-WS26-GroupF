@@ -42,7 +42,7 @@ std::size_t ReadPositiveCount(const Json &value, const std::string &field_name) 
     return static_cast<std::size_t>(count);
 }
 
-double ReadRequiredDouble(const Json &value, const std::string &field_name) {
+double ReadPositiveRequiredDouble(const Json &value, const std::string &field_name) {
     if (!value.is_number_float()) {
         throw std::invalid_argument("'" + field_name + "' must be a positive scalar double");
     }
@@ -50,8 +50,8 @@ double ReadRequiredDouble(const Json &value, const std::string &field_name) {
     // Read the scalar value and attempt to cast to integer
     try {
         const double val = value.get<double>();
-        if (val <= 0) {
-            throw std::invalid_argument("'" + field_name + "' must be greater than zero");
+        if (val < 0) {
+            throw std::invalid_argument("'" + field_name + "' must be a positive double");
         }
 
         return val;
@@ -70,8 +70,8 @@ double ReadRequiredDouble(const Json &value, const std::string &field_name) {
  * Used as a fallback value for if the read file does not contain it
  * @return either the value written in the field or the default provided
  */
-double ReadPositiveDoubleAgainstDefault(const Json &value, const std::string &field_name,
-                                        const double default_value) {
+double ReadNNDoubleAgainstDefault(const Json &value, const std::string &field_name,
+                                  const double default_value) {
     // if the field is not in the file, return the default
     if (value.is_null()) {
         return default_value;
@@ -83,8 +83,8 @@ double ReadPositiveDoubleAgainstDefault(const Json &value, const std::string &fi
 
     try {
         const double val = value.get<double>();
-        if (val <= 0.0) {
-            throw std::invalid_argument("'" + field_name + "' must be a positive double");
+        if (val < 0.0) {
+            throw std::invalid_argument("'" + field_name + "' must be a non-negative double");
         }
 
         return static_cast<double>(val);
@@ -147,28 +147,28 @@ ParticleCuboid ParseCuboid(const Json &cuboid) {
     const Vec3 origin = ReadVec3(cuboid.at("origin"), "origin");
     const Vec3 initial_velocity = ReadVec3(cuboid.at("initial_velocity"), "initial_velocity");
 
-    const auto &counts = cuboid.at("particle_counts");
+    const auto &counts = cuboid.at("dimensions");
     if (!counts.is_array() || counts.size() != 3) {
-        throw std::invalid_argument("'particle_counts' must be an array of exactly 3 integers");
+        throw std::invalid_argument("'dimensions' must be an array of exactly 3 integers");
     }
-    const std::size_t n1 = ReadPositiveCount(counts[0], "particle_counts[0]");
-    const std::size_t n2 = ReadPositiveCount(counts[1], "particle_counts[1]");
-    const std::size_t n3 = ReadPositiveCount(counts[2], "particle_counts[2]");
+    const std::size_t n1 = ReadPositiveCount(counts[0], "dimensions[0]");
+    const std::size_t n2 = ReadPositiveCount(counts[1], "dimensions[1]");
+    const std::size_t n3 = ReadPositiveCount(counts[2], "dimensions[2]");
 
-    const double spacing = ReadRequiredDouble(cuboid.at("spacing"), "spacing");
-    const double mass = ReadRequiredDouble(cuboid.at("mass"), "mass");
+    const double spacing = ReadPositiveRequiredDouble(cuboid.at("spacing"), "spacing");
+    const double mass = ReadPositiveRequiredDouble(cuboid.at("mass"), "mass");
     const double brownian_velocity =
-        ReadRequiredDouble(cuboid.at("brownian_velocity"), "brownian_velocity");
+        ReadPositiveRequiredDouble(cuboid.at("brownian_velocity"), "brownian_velocity");
 
     SPDLOG_DEBUG("Cuboid at {}: {}x{}x{} particles, h = {}, m = {}", origin, n1, n2, n3, spacing,
                  mass);
 
     // initialize the particle cuboid and return
     pc.min = origin;
-    pc.initial_velocity = initial_velocity;
     pc.dimensions = {n1, n2, n3};
     pc.spacing = spacing;
     pc.mass = mass;
+    pc.initial_velocity = initial_velocity;
     pc.brownian_velocity = brownian_velocity;
 
     return pc;
@@ -183,19 +183,19 @@ ParticleDisc ParseDisc(const Json &disc) {
     const std::size_t radius = ReadPositiveCount(disc.at("radius"), "radius");
     const std::size_t height = ReadPositiveCount(disc.at("height"), "height");
 
-    const double spacing = ReadRequiredDouble(disc.at("spacing"), "spacing");
-    const double mass = ReadRequiredDouble(disc.at("mass"), "mass");
+    const double spacing = ReadPositiveRequiredDouble(disc.at("spacing"), "spacing");
+    const double mass = ReadPositiveRequiredDouble(disc.at("mass"), "mass");
     const double brownian_velocity =
-        ReadRequiredDouble(disc.at("brownian_velocity"), "brownian_velocity");
+        ReadPositiveRequiredDouble(disc.at("brownian_velocity"), "brownian_velocity");
 
     SPDLOG_DEBUG("Disc centered at {}: radius {}, h = {}, m = {}", origin, radius, spacing, mass);
 
     pd.center = origin;
-    pd.height = height;
-    pd.initial_velocity = initial_velocity;
     pd.radius = radius;
+    pd.height = height;
     pd.spacing = spacing;
     pd.mass = mass;
+    pd.initial_velocity = initial_velocity;
     pd.brownian_velocity = brownian_velocity;
 
     return pd;
@@ -206,10 +206,8 @@ ParticleDisc ParseDisc(const Json &disc) {
 GeneratorVector JsonReader::InitializeGenerators(const Json &value) {
     GeneratorVector generators;
 
-    const auto &cuboids = value.at("cuboids");
-    const auto &discs = value.at("discs");
-
-    if (cuboids.contains("cuboids")) {
+    if (value.contains("cuboids")) {
+        const auto &cuboids = value.at("cuboids");
         if (!cuboids.is_array()) {
             throw std::invalid_argument("'cuboids' must be an array");
         }
@@ -221,7 +219,8 @@ GeneratorVector JsonReader::InitializeGenerators(const Json &value) {
         }
     }
 
-    if (discs.contains("discs")) {
+    if (value.contains("discs")) {
+        const auto &discs = value.at("discs");
         if (!discs.is_array()) {
             throw std::invalid_argument("'discs' must be an array");
         }
@@ -260,18 +259,16 @@ SimulationSpec JsonReader::Read(SimulationSettings user_defined) {
     const Vec3 max_bounds = ReadVec3(config.at("bounds_maximum"), "bounds_maximum");
 
     // read cutoff
-    const double cutoff = ReadRequiredDouble(config.at("cutoff"), "cutoff");
+    const double cutoff = ReadPositiveRequiredDouble(config.at("cutoff"), "cutoff");
 
     // read simulation run configuration settings
-    const double start =
-        ReadPositiveDoubleAgainstDefault(config.at("start"), "start", user_defined.start_time);
-    const double end =
-        ReadPositiveDoubleAgainstDefault(config.at("end"), "end", user_defined.end_time);
-    if (end >= start) {
+
+    const double start = config.contains("start") ? ReadNNDoubleAgainstDefault(config.at("start"), "start", user_defined.start_time) : user_defined.start_time;
+    const double end = config.contains("end") ? ReadNNDoubleAgainstDefault(config.at("end"), "end", user_defined.end_time) : user_defined.end_time;
+    if (end <= 0 || end <= start) {
         throw std::invalid_argument("'end' must be a positive double greater than the start time");
     }
-    const double delta_t =
-        ReadPositiveDoubleAgainstDefault(config.at("delta_t"), "delta_t", user_defined.delta_t);
+    const double delta_t = config.contains("delta_t") ? ReadNNDoubleAgainstDefault(config.at("delta_t"), "delta_t", user_defined.delta_t) : user_defined.delta_t;
     if (delta_t > end - start) {
         throw std::invalid_argument("'delta_t' must be less than the duration of the simulation");
     }
