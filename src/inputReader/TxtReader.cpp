@@ -11,6 +11,7 @@
 
 #include <cstdlib>
 #include <fstream>
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -18,7 +19,8 @@
 
 namespace file_reader {
 
-void TxtReader::Read(ParticleContainer &particles) {
+SimulationSpec TxtReader::Read(SimulationSettings user_defined) {
+    GeneratorVector generators;
     if (std::ifstream input_file(file_path_); input_file.is_open()) {
         Vec3 x{};
         Vec3 v{};
@@ -53,11 +55,15 @@ void TxtReader::Read(ParticleContainer &particles) {
                 throw std::runtime_error(fmt::format("unexpected end of file in line {}", i));
             }
             datastream >> m;
-            particles.add(x, v, m);
+
+            generators.push_back(
+                std::make_unique<ParticleSingleton>(ParticleSingleton{ParticleData{x, v, m}}));
 
             getline(input_file, tmp_string);
             SPDLOG_TRACE("Read line: {}", tmp_string);
         }
+
+        return SimulationSpec(user_defined, DomainSettings{}, std::move(generators));
     } else {
         throw std::runtime_error(fmt::format("Error: could not open file {}", file_path_));
     }

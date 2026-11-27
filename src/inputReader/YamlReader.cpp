@@ -107,7 +107,7 @@ double ReadPositiveDoubleAgainstDefault(const YAML::Node &value, const std::stri
  */
 BoundaryCondition ConvertFromScalar(const YAML::Node &value, const std::string &field_name) {
     if (!value.IsScalar()) {
-        throw std::invalid_argument("'" + field_name + "' must be a scalar");
+        throw std::invalid_argument("'" + field_name + "' must be an appropriate string");
     }
 
     const auto cond = value.as<std::string>();

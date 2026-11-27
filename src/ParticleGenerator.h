@@ -102,4 +102,11 @@ struct ParticleDisc : ParticleGenerator {
  */
 struct ParticleSingleton : ParticleGenerator {
     ParticleData pd;
+
+   public:
+    explicit ParticleSingleton(ParticleData pd) : pd(std::move(pd)) {}
+
+    void ForEach(const std::function<void(const ParticleData &)> &call_back) const override {
+        call_back(ParticleData{pd});
+    }
 };

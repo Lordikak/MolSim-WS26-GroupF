@@ -11,6 +11,7 @@
 
 #include "FileReader.h"
 #include "SimulationConfig.h"
+#include "nlohmann/json.hpp"
 
 namespace file_reader {
 
@@ -55,7 +56,7 @@ class TxtReader final : public FileReader {
      * @return SimulationSpec struct containing configuration data for simulation and domain,
      * along with particle generators
      */
-    SimulationSpec Read(ParticleContainer &particles);
+    SimulationSpec Read(SimulationSettings user_defined);
 };
 
 }  // namespace file_reader

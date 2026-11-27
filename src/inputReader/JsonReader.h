@@ -6,6 +6,7 @@
 #include "FileReader.h"
 #include "ParticleContainer.h"
 #include "SimulationConfig.h"
+#include "nlohmann/json.hpp"
 
 namespace file_reader {
 
@@ -51,6 +52,13 @@ namespace file_reader {
  */
 class JsonReader final : public FileReader {
     const std::string file_path_;
+
+    /**
+     * @brief initialize the particle generators based on yaml intialization data
+     * @param value the cuboid or disc to be defined
+     * @return a vector of ParticleCuboids and ParticleDiscs to initialize molecules later
+     */
+    static GeneratorVector InitializeGenerators(const nlohmann::json &value);
 
    public:
     /**
