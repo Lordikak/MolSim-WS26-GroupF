@@ -3,7 +3,8 @@
 
 #include <concepts>
 
-#include "../src/LennardJones.h"
+#include "../src/interactions/LennardJones.h"
+
 #include "../src/utils/Vec3.h"
 
 // test lennard jones force calculations at multiple distances

@@ -139,8 +139,13 @@ int main(int argc, char *argsv[]) {
                                      ? StepCallback{[](const ParticleContainer &, int, double) {}}
                                      : StepCallback{post_iter};
 
-    simulation::Simulation sim{
-        std::move(particles), {start_time, end_time, delta_t}, LennardJones{.r_cutoff = kRCutoff}};
+    // TODO gravity should be an input parameter in the yaml or something
+    Vec3 gravity = {0, 0, -2.0};
+    simulation::Simulation<LennardJones, LennardJonesRepulsion> sim{
+        std::move(particles),
+        {start_time, end_time, delta_t, gravity},
+        LennardJones{.r_cutoff = kRCutoff},
+        LennardJonesRepulsion{.r_cutoff = kRCutoff}};
 
     const auto start = std::chrono::steady_clock::now();
     sim.Run(on_step);

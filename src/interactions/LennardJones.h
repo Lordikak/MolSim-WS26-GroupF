@@ -2,8 +2,8 @@
 
 #include <limits>
 
-#include "utils/ArrayUtils.h"
-#include "utils/Vec3.h"
+#include "../utils/ArrayUtils.h"
+#include "../utils/Vec3.h"
 
 /**
  * @brief Lennard Jones force kernel to get the force between two particles
@@ -33,6 +33,7 @@ struct LennardJones {
         return (r2 < r_cutoff * r_cutoff ? scale : 0.0) * delta_x;
     }
 
+    // TODO think about tests
     /**
      * @brief Compute potential energy
      * @return potential energy between two particles

@@ -288,6 +288,15 @@ class ParticleContainer {
     template <PairKernel Kernel>
     void PairsOfCell(Kernel kernel, CellCoords c);
 
+    Vec3 GhostParticlePosition(const Vec3 &position, Face face);
+    template <class BoundaryKernel>
+    Vec3 GhostForce(BoundaryKernel boundary_kernel, auto p_i, Face face);
+    template <class BoundaryKernel>
+    void GhostParticleBoundryForce(BoundaryKernel boundary_kernel, Index a_start, Index a_end,
+                                   Face face);
+
+    void ApplyGravity(Index index_start, Index index_end, const Vec3 &gravity);
+
     [[nodiscard]] Index end(const CellCoords cell_index) const {
         return cell_start_[grid_.LinearIndex(cell_index) + 1];
     }
@@ -361,6 +370,64 @@ class ParticleContainer {
     /// @}
 
     /**
+     * @brief Applies the external gravity force to every particle.
+     *
+     * Splits the particles into contiguous ranges and processes those ranges in
+     * parallel. If the container is empty, this function does nothing.
+     *
+     * @param gravity Gravity acceleration applied to the particles
+     */
+    void ApplyExternalForces(const Vec3 &gravity) {
+        const Index total = size();
+        if (total == 0) {
+            return;
+        }
+
+        const Index num_parts = std::min(total, static_cast<Index>(omp_get_max_threads()));
+
+        std::vector<std::pair<Index, Index>> ranges;
+        ranges.reserve(num_parts);
+
+        const Index base = total / num_parts;
+        const Index remainder = total % num_parts;
+
+        Index start = 0;
+        for (Index part = 0; part < num_parts; ++part) {
+            const Index count = base + (part < remainder ? 1 : 0);
+            const Index end = start + count;
+
+            ranges.emplace_back(start, end);
+            start = end;
+        }
+
+#pragma omp parallel for schedule(static)
+        for (std::size_t part = 0; part < ranges.size(); ++part) {
+            ApplyGravity(ranges[part].first, ranges[part].second, gravity);
+        }
+    }
+
+    /**
+     * @brief Applies repulsive boundary forces to particles near the container edges.
+     *
+     * Iterates over the edge strips along the x-axis and applies the boundary force
+     * for each strip's associated face.
+     *
+     * @tparam BoundaryKernel Callable that computes the force on a particle from its
+     *         ghost image, with a signature compatible with
+     *         `Vec3(Vec3 position, Vec3 ghost_position)`.
+     *
+     * @param boundary_kernel Computes the force acting on a particle near a boundary
+     *        from its ghost image.
+     */
+    template <class BoundaryKernel>
+    void ApplyBoundryForces(BoundaryKernel boundary_kernel) {
+#pragma omp parallel for schedule(dynamic)
+        for (const auto &[first, last, face] : grid_.EdgeStripsAlongX(boundary_conditions_)) {
+            GhostParticleBoundryForce(boundary_kernel, start(first), end(last), face);
+        }
+    }
+
+    /**
      * @brief Applies pairwise forces between all particles
      *
      * Calls the @p kernel once per unordered pair (i, j) with i < j, applying to both using
@@ -376,7 +443,8 @@ class ParticleContainer {
      * compiler gets the independence promise
      *
      * @tparam Kernel Callable with signature
-     * `Vec3(ParticleRef<const ParticleContainer> p_i, ParticleRef<const ParticleContainer> p_j)`
+     * `Vec3(ParticleRef<const ParticleContainer> p_i, ParticleRef<const ParticleContainer>
+     * p_j)`
      *
      * @param kernel Returns the force acting on @p p_i by @p p_j
      */
@@ -415,132 +483,6 @@ class ParticleContainer {
 #endif
     }
 
-    //-------------------
-
-    // Mirror a particle's position across the selected domain face.
-    Vec3 GhostParticlePosition(const Vec3 &position, Face face) const {
-        Vec3 ghost_x = position;
-        std::size_t axis = 0;
-        double boundary = 0.0;
-
-        switch (face) {
-            case Face::kXMin:
-                axis = 0;
-                boundary = grid_.DomainMin()[0];
-                break;
-            case Face::kXMax:
-                axis = 0;
-                boundary = grid_.DomainMax()[0];
-                break;
-            case Face::kYMin:
-                axis = 1;
-                boundary = grid_.DomainMin()[1];
-                break;
-            case Face::kYMax:
-                axis = 1;
-                boundary = grid_.DomainMax()[1];
-                break;
-            case Face::kZMin:
-                axis = 2;
-                boundary = grid_.DomainMin()[2];
-                break;
-            case Face::kZMax:
-                axis = 2;
-                boundary = grid_.DomainMax()[2];
-                break;
-            default:
-                return position;
-        }
-
-        ghost_x[axis] = 2.0 * boundary - ghost_x[axis];
-        return ghost_x;
-    }
-
-    // Calculate the repulsive force between a particle and its ghost.
-    Vec3 GhostRepulsiveForce(const Vec3 &position, const Vec3 &ghost_x) const {
-        const Vec3 delta_x = ghost_x - position;
-        const double r2 = ArrayUtils::L2NormSquared(delta_x);
-
-        // TODO: Replace these temporary values with the simulation parameters.
-        const double r_cutoff = std::numeric_limits<double>::infinity();
-        const double sigma = 1.0;
-        const double epsilon = 5.0;
-
-        if (r2 == 0.0 || r2 >= r_cutoff * r_cutoff) {
-            return Vec3{};
-        }
-
-        const double inv_r2 = 1.0 / r2;
-        const double s2 = sigma * sigma * inv_r2;
-        const double s6 = s2 * s2 * s2;
-        const double s12 = s6 * s6;
-        const double scale = -48.0 * epsilon * inv_r2 * s12;
-
-        return scale * delta_x;
-    }
-
-    // Find the mirrored ghost position, then calculate its repulsive force.
-    Vec3 GhostForce(auto p_i, Face face) const {
-        const Vec3 position = p_i.x();
-        const Vec3 ghost_x = GhostParticlePosition(position, face);
-        return GhostRepulsiveForce(position, ghost_x);
-    }
-
-    void GhostParticleBoundryForce(Index a_start, Index a_end, Face face) {
-        for (Index i = a_start; i < a_end; ++i) {
-            const ParticleRef<const ParticleContainer> p_i(*this, i);
-            const Vec3 f_i = GhostForce(p_i, face);
-            f_.set(i, f_.get(i) + f_i);
-        }
-    }
-
-    void ApplyBoundryForces() {
-#pragma omp parallel for schedule(dynamic)
-        for (const auto &[first, last, face] : grid_.EdgeStripsAlongX(boundary_conditions_)) {
-            GhostParticleBoundryForce(start(first), end(last), face);
-        }
-    }
-
-    void ApplyGravity(Index index_start, Index index_end, const Vec3 &gravity) {
-        for (Index i = index_start; i < index_end; ++i) {
-            const Vec3 gravity_force = m_[i] * gravity;
-            f_.set(i, f_.get(i) + gravity_force);
-        }
-    }
-
-    void ApplyExternalForces() {
-        const Index total = size();
-        if (total == 0) {
-            return;
-        }
-
-        const Index num_parts = std::min(total, static_cast<Index>(omp_get_max_threads()));
-
-        std::vector<std::pair<Index, Index>> ranges;
-        ranges.reserve(num_parts);
-
-        const Index base = total / num_parts;
-        const Index remainder = total % num_parts;
-
-        Index start = 0;
-        for (Index part = 0; part < num_parts; ++part) {
-            const Index count = base + (part < remainder ? 1 : 0);
-            const Index end = start + count;
-
-            ranges.emplace_back(start, end);
-            start = end;
-        }
-
-        const Vec3 gravity{0.0, 0.0, -3.0};
-
-#pragma omp parallel for schedule(static)
-        for (std::size_t part = 0; part < ranges.size(); ++part) {
-            ApplyGravity(ranges[part].first, ranges[part].second, gravity);
-        }
-    }
-
-    //-------------------
-
     void Rebuild();
 
     /**
@@ -578,6 +520,25 @@ class ParticleContainer {
         return energy;
     }
 };
+
+// Find the mirrored ghost position, then calculate its repulsive force.
+template <class BoundaryKernel>
+Vec3 ParticleContainer::GhostForce(BoundaryKernel boundary_kernel, auto p_i, Face face) {
+    const Vec3 position = p_i.x();
+    const Vec3 ghost_x = GhostParticlePosition(position, face);
+    return boundary_kernel(position, ghost_x);
+}
+
+// Applies the boundary-kernel force to each particle in the specified range.
+template <class BoundaryKernel>
+void ParticleContainer::GhostParticleBoundryForce(BoundaryKernel boundary_kernel, Index a_start,
+                                                  Index a_end, Face face) {
+    for (Index i = a_start; i < a_end; ++i) {
+        const ParticleRef<const ParticleContainer> p_i(*this, i);
+        const Vec3 f_i = GhostForce(boundary_kernel, p_i, face);
+        f_.set(i, f_.get(i) + f_i);
+    }
+}
 
 template <PairKernel Kernel>
 void ParticleContainer::PairsWithinAndNext(const Kernel kernel, const Index start, const Index end,
