@@ -3,19 +3,31 @@
     "cuboids" : [
         {
             "origin" : [ 0.0, 0.0, 0.0 ],
-            "particle_counts" : [ 40, 8, 1 ],
+            "dimensions" : [ 40, 8, 1 ],
             "spacing" : 1.1225,
             "mass" : 1.0,
             "initial_velocity" : [ 0.0, 0.0, 0.0 ],
-            "average_velocity": 0.1
+            "brownian_velocity": 0.1
         },
         {
             "origin" : [ 15, 15, 0.0 ],
-            "particle_counts" : [ 8, 8, 1],
+            "dimensions" : [ 8, 8, 1],
             "spacing" : 1.1225,
             "mass" : 1.0,
             "initial_velocity" : [ 0.0, -10, 0.0 ],
-            "average_velocity": 0.1
+            "brownian_velocity": 0.1
         }
-    ]
+        ],
+    "bounds_minimum" : [0.0, 0.0, 0.0],
+    "bounds_maximum" : [100.0, 100.0, 100.0],
+    "cutoff" : 3.0,
+    "boundary_conditions" :
+    {
+        "min_x" : "outflow",
+        "max_x" : "outflow",
+        "min_y" : "outflow",
+        "max_y" : "outflow",
+        "min_z" : "outflow",
+        "max_z" : "outflow"
+    }
 }
