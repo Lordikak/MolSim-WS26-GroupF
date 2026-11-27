@@ -177,7 +177,7 @@ ParticleCuboid ParseCuboid(const Json &cuboid) {
 ParticleDisc ParseDisc(const Json &disc) {
     ParticleDisc pd;
 
-    const Vec3 origin = ReadVec3(disc.at("origin"), "origin");
+    const Vec3 center = ReadVec3(disc.at("center"), "center");
     const Vec3 initial_velocity = ReadVec3(disc.at("initial_velocity"), "initial_velocity");
 
     const std::size_t radius = ReadPositiveCount(disc.at("radius"), "radius");
@@ -188,9 +188,9 @@ ParticleDisc ParseDisc(const Json &disc) {
     const double brownian_velocity =
         ReadPositiveRequiredDouble(disc.at("brownian_velocity"), "brownian_velocity");
 
-    SPDLOG_DEBUG("Disc centered at {}: radius {}, h = {}, m = {}", origin, radius, spacing, mass);
+    SPDLOG_DEBUG("Disc centered at {}: radius {}, h = {}, m = {}", center, radius, spacing, mass);
 
-    pd.center = origin;
+    pd.center = center;
     pd.radius = radius;
     pd.height = height;
     pd.spacing = spacing;
@@ -263,12 +263,20 @@ SimulationSpec JsonReader::Read(SimulationSettings user_defined) {
 
     // read simulation run configuration settings
 
-    const double start = config.contains("start") ? ReadNNDoubleAgainstDefault(config.at("start"), "start", user_defined.start_time) : user_defined.start_time;
-    const double end = config.contains("end") ? ReadNNDoubleAgainstDefault(config.at("end"), "end", user_defined.end_time) : user_defined.end_time;
+    const double start =
+        config.contains("start")
+            ? ReadNNDoubleAgainstDefault(config.at("start"), "start", user_defined.start_time)
+            : user_defined.start_time;
+    const double end = config.contains("end") ? ReadNNDoubleAgainstDefault(config.at("end"), "end",
+                                                                           user_defined.end_time)
+                                              : user_defined.end_time;
     if (end <= 0 || end <= start) {
         throw std::invalid_argument("'end' must be a positive double greater than the start time");
     }
-    const double delta_t = config.contains("delta_t") ? ReadNNDoubleAgainstDefault(config.at("delta_t"), "delta_t", user_defined.delta_t) : user_defined.delta_t;
+    const double delta_t =
+        config.contains("delta_t")
+            ? ReadNNDoubleAgainstDefault(config.at("delta_t"), "delta_t", user_defined.delta_t)
+            : user_defined.delta_t;
     if (delta_t > end - start) {
         throw std::invalid_argument("'delta_t' must be less than the duration of the simulation");
     }

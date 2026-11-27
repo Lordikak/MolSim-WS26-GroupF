@@ -182,7 +182,7 @@ ParticleCuboid ParseCuboid(const YAML::Node &cuboid) {
 ParticleDisc ParseDisc(const YAML::Node &disc) {
     ParticleDisc pd;
 
-    const Vec3 origin = ReadVec3(disc["origin"], "origin");
+    const Vec3 center = ReadVec3(disc["center"], "center");
     const Vec3 initial_velocity = ReadVec3(disc["initial_velocity"], "initial_velocity");
 
     const std::size_t radius = ReadPositiveCount(disc["radius"], "radius");
@@ -193,9 +193,9 @@ ParticleDisc ParseDisc(const YAML::Node &disc) {
     const double brownian_velocity =
         ReadPositiveRequiredDouble(disc["brownian_velocity"], "brownian_velocity");
 
-    SPDLOG_DEBUG("Disc centered at {}: radius {}, h = {}, m = {}", origin, radius, spacing, mass);
+    SPDLOG_DEBUG("Disc centered at {}: radius {}, h = {}, m = {}", center, radius, spacing, mass);
 
-    pd.center = origin;
+    pd.center = center;
     pd.radius = radius;
     pd.height = height;
     pd.spacing = spacing;
