@@ -1,7 +1,13 @@
 #pragma once
+#include <omp.h>
+
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <type_traits>
 #include <vector>
 
@@ -124,21 +130,37 @@ class ParticleIterator {
     bool operator==(const ParticleIterator &other) const { return index_ == other.index_; }
 };
 
+// TODO: Implement these (Currently everything is outflow) (Ghost particles for Reflecting needs to
+// be added)
+enum class Face : std::uint8_t { kXMin, kXMax, kYMin, kYMax, kZMin, kZMax };
+enum class BoundaryCondition : std::uint8_t { kOutflow, kReflecting };
+
+struct BoundaryConditions {
+    std::array<BoundaryCondition, 6> by_face{
+        BoundaryCondition::kOutflow,  // kXMin
+        BoundaryCondition::kOutflow,  // kXMax
+        BoundaryCondition::kOutflow,  // kYMin
+        BoundaryCondition::kOutflow,  // kYMax
+        BoundaryCondition::kOutflow,  // kZMin
+        BoundaryCondition::kOutflow   // kZMax
+    };
+
+    [[nodiscard]] BoundaryCondition For(Face face) const {
+        return by_face[static_cast<std::size_t>(face)];
+    }
+};
+
+constexpr auto kF64Inf = std::numeric_limits<double>::infinity();
+
 using CellCoords = std::array<Index, 3>;
 using CellOffset = std::array<std::int32_t, 3>;
+using CellStrip = std::tuple<CellCoords, CellCoords, Face>;
 
 inline CellCoords operator+(const CellCoords &c, const CellOffset &o) {
     return {static_cast<Index>(static_cast<std::int32_t>(c[0]) + o[0]),
             static_cast<Index>(static_cast<std::int32_t>(c[1]) + o[1]),
             static_cast<Index>(static_cast<std::int32_t>(c[2]) + o[2])};
 }
-
-// TODO: Implement these (Currently everything is outflow) (Ghost particles for Reflecting needs to
-// be added)
-enum class Face : std::uint8_t { kXMin, kXMax, kYMin, kYMax, kZMin, kZMax };
-enum class BoundaryCondition : std::uint8_t { kOutflow, kReflecting };
-
-constexpr auto kF64Inf = std::numeric_limits<double>::infinity();
 
 class CellGrid {
     Vec3 domain_min_, domain_max_;
@@ -164,6 +186,60 @@ class CellGrid {
     [[nodiscard]] bool IsHalo(const CellCoords &c) const;
     [[nodiscard]] Index CellCount() const { return cell_count_; }
     [[nodiscard]] std::array<Index, 3> const &Count() const { return count_; }
+    [[nodiscard]] const Vec3 &DomainMin() const { return domain_min_; }
+    [[nodiscard]] const Vec3 &DomainMax() const { return domain_max_; }
+
+    /// @brief Returns x-directed boundary strips for reflecting faces only.
+    /// @details Strips cover the interior boundary cells and exclude halo cells.
+    ///          Y- and Z-facing strips run along X; X-facing strips contain one cell.
+    ///          Cells on edges and corners may appear in multiple strips, once for
+    ///          each adjoining reflecting face.
+    /// @param boundaries Boundary conditions used to select which faces to include.
+    /// @return Boundary strips associated with reflecting faces.
+    [[nodiscard]] std::vector<CellStrip> EdgeStripsAlongX(
+        const BoundaryConditions &boundaries) const {
+        std::vector<CellStrip> strips;
+
+        const Index x_min = 1;
+        const Index x_max = count_[0] - 2;
+        const Index y_min = 1;
+        const Index y_max = count_[1] - 2;
+        const Index z_min = 1;
+        const Index z_max = count_[2] - 2;
+
+        const auto add_if_reflecting = [&strips, &boundaries](const CellCoords &first,
+                                                              const CellCoords &last, Face face) {
+            if (boundaries.For(face) == BoundaryCondition::kReflecting) {
+                strips.emplace_back(first, last, face);
+            }
+        };
+
+        // Y-facing surfaces: x-directed strips, one for each z coordinate.
+        for (Index z = z_min; z <= z_max; ++z) {
+            add_if_reflecting(CellCoords{x_min, y_min, z}, CellCoords{x_max, y_min, z},
+                              Face::kYMin);
+            add_if_reflecting(CellCoords{x_min, y_max, z}, CellCoords{x_max, y_max, z},
+                              Face::kYMax);
+        }
+
+        // Z-facing surfaces: x-directed strips, one for each y coordinate.
+        for (Index y = y_min; y <= y_max; ++y) {
+            add_if_reflecting(CellCoords{x_min, y, z_min}, CellCoords{x_max, y, z_min},
+                              Face::kZMin);
+            add_if_reflecting(CellCoords{x_min, y, z_max}, CellCoords{x_max, y, z_max},
+                              Face::kZMax);
+        }
+
+        // X-facing surfaces: each cell is a single-cell strip.
+        for (Index z = z_min; z <= z_max; ++z) {
+            for (Index y = y_min; y <= y_max; ++y) {
+                add_if_reflecting(CellCoords{x_min, y, z}, CellCoords{x_min, y, z}, Face::kXMin);
+                add_if_reflecting(CellCoords{x_max, y, z}, CellCoords{x_max, y, z}, Face::kXMax);
+            }
+        }
+
+        return strips;
+    }
 };
 
 /**
@@ -188,6 +264,15 @@ class ParticleContainer {
     std::vector<Index> cell_start_;
     CellGrid grid_;
 
+    BoundaryConditions boundary_conditions_{{
+        BoundaryCondition::kReflecting,  // kXMin
+        BoundaryCondition::kReflecting,  // kXMax
+        BoundaryCondition::kReflecting,  // kYMin
+        BoundaryCondition::kReflecting,  // kYMax
+        BoundaryCondition::kReflecting,  // kZMin
+        BoundaryCondition::kReflecting   // kZMax
+    }};
+
     std::vector<Index> cell_particle_count_;  // this is only here so it doesnt need to get reallocd
                                               // each force calc.
     std::vector<Index> keys_;                 // Also to keep as scratch vector
@@ -202,6 +287,15 @@ class ParticleContainer {
     void PairsBetween(Kernel kernel, Index a_start, Index a_end, Index b_start, Index b_end);
     template <PairKernel Kernel>
     void PairsOfCell(Kernel kernel, CellCoords c);
+
+    Vec3 GhostParticlePosition(const Vec3 &position, Face face);
+    template <class BoundaryKernel>
+    Vec3 GhostForce(BoundaryKernel boundary_kernel, auto p_i, Face face);
+    template <class BoundaryKernel>
+    void GhostParticleBoundryForce(BoundaryKernel boundary_kernel, Index a_start, Index a_end,
+                                   Face face);
+
+    void ApplyGravity(Index index_start, Index index_end, const Vec3 &gravity);
 
     [[nodiscard]] Index end(const CellCoords cell_index) const {
         return cell_start_[grid_.LinearIndex(cell_index) + 1];
@@ -276,6 +370,64 @@ class ParticleContainer {
     /// @}
 
     /**
+     * @brief Applies the external gravity force to every particle.
+     *
+     * Splits the particles into contiguous ranges and processes those ranges in
+     * parallel. If the container is empty, this function does nothing.
+     *
+     * @param gravity Gravity acceleration applied to the particles
+     */
+    void ApplyExternalForces(const Vec3 &gravity) {
+        const Index total = size();
+        if (total == 0) {
+            return;
+        }
+
+        const Index num_parts = std::min(total, static_cast<Index>(omp_get_max_threads()));
+
+        std::vector<std::pair<Index, Index>> ranges;
+        ranges.reserve(num_parts);
+
+        const Index base = total / num_parts;
+        const Index remainder = total % num_parts;
+
+        Index start = 0;
+        for (Index part = 0; part < num_parts; ++part) {
+            const Index count = base + (part < remainder ? 1 : 0);
+            const Index end = start + count;
+
+            ranges.emplace_back(start, end);
+            start = end;
+        }
+
+#pragma omp parallel for schedule(static)
+        for (std::size_t part = 0; part < ranges.size(); ++part) {
+            ApplyGravity(ranges[part].first, ranges[part].second, gravity);
+        }
+    }
+
+    /**
+     * @brief Applies repulsive boundary forces to particles near the container edges.
+     *
+     * Iterates over the edge strips along the x-axis and applies the boundary force
+     * for each strip's associated face.
+     *
+     * @tparam BoundaryKernel Callable that computes the force on a particle from its
+     *         ghost image, with a signature compatible with
+     *         `Vec3(Vec3 position, Vec3 ghost_position)`.
+     *
+     * @param boundary_kernel Computes the force acting on a particle near a boundary
+     *        from its ghost image.
+     */
+    template <class BoundaryKernel>
+    void ApplyBoundryForces(BoundaryKernel boundary_kernel) {
+#pragma omp parallel for schedule(dynamic)
+        for (const auto &[first, last, face] : grid_.EdgeStripsAlongX(boundary_conditions_)) {
+            GhostParticleBoundryForce(boundary_kernel, start(first), end(last), face);
+        }
+    }
+
+    /**
      * @brief Applies pairwise forces between all particles
      *
      * Calls the @p kernel once per unordered pair (i, j) with i < j, applying to both using
@@ -291,7 +443,8 @@ class ParticleContainer {
      * compiler gets the independence promise
      *
      * @tparam Kernel Callable with signature
-     * `Vec3(ParticleRef<const ParticleContainer> p_i, ParticleRef<const ParticleContainer> p_j)`
+     * `Vec3(ParticleRef<const ParticleContainer> p_i, ParticleRef<const ParticleContainer>
+     * p_j)`
      *
      * @param kernel Returns the force acting on @p p_i by @p p_j
      */
@@ -367,6 +520,25 @@ class ParticleContainer {
         return energy;
     }
 };
+
+// Find the mirrored ghost position, then calculate its repulsive force.
+template <class BoundaryKernel>
+Vec3 ParticleContainer::GhostForce(BoundaryKernel boundary_kernel, auto p_i, Face face) {
+    const Vec3 position = p_i.x();
+    const Vec3 ghost_x = GhostParticlePosition(position, face);
+    return boundary_kernel(position, ghost_x);
+}
+
+// Applies the boundary-kernel force to each particle in the specified range.
+template <class BoundaryKernel>
+void ParticleContainer::GhostParticleBoundryForce(BoundaryKernel boundary_kernel, Index a_start,
+                                                  Index a_end, Face face) {
+    for (Index i = a_start; i < a_end; ++i) {
+        const ParticleRef<const ParticleContainer> p_i(*this, i);
+        const Vec3 f_i = GhostForce(boundary_kernel, p_i, face);
+        f_.set(i, f_.get(i) + f_i);
+    }
+}
 
 template <PairKernel Kernel>
 void ParticleContainer::PairsWithinAndNext(const Kernel kernel, const Index start, const Index end,

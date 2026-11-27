@@ -2,20 +2,23 @@
 #include <cmath>
 #include <functional>
 
-#include "LennardJones.h"
 #include "ParticleContainer.h"
+#include "interactions/LennardJones.h"
+#include "interactions/LennardJonesRepulsion.h"
 #include "spdlog/spdlog.h"
 
 namespace simulation {
 /**
  * @brief configuration parameters for a simulation run
  *
- * contains positive arguments start time, end time, and delta t
+ * contains positive arguments start time, end time, delta t and gravity
  */
 struct SimulationSettings {
     double start_time;
     double end_time;
     double delta_t;
+
+    Vec3 gravity{0, 0, 0};
 };
 
 namespace detail {
@@ -40,11 +43,12 @@ inline void CalculateV(ParticleContainer &particles, const double delta_t) {
 /**
  * @brief Molecular dynamic simulation
  */
-template <PairKernel Kernel = LennardJones>
+template <PairKernel Kernel = LennardJones, class BoundaryKernel = LennardJonesRepulsion>
 class Simulation {
     ParticleContainer particles_;
     SimulationSettings settings_;
     Kernel kernel_;
+    BoundaryKernel boundary_kernel_;
 
     /**
      * @brief Computes LJ for each particle pair
@@ -54,8 +58,12 @@ class Simulation {
     void CalculateF();
 
    public:
-    Simulation(ParticleContainer container, const SimulationSettings &settings, Kernel kernel = {})
-        : particles_(std::move(container)), settings_(settings), kernel_(std::move(kernel)) {}
+    Simulation(ParticleContainer container, const SimulationSettings &settings, Kernel kernel = {},
+               BoundaryKernel boundary_kernel = {})
+        : particles_(std::move(container)),
+          settings_(settings),
+          kernel_(std::move(kernel)),
+          boundary_kernel_(std::move(boundary_kernel)) {}
 
     /**
      * @brief Calculates each iteration of a simulation run
@@ -77,8 +85,8 @@ class Simulation {
     int IterationCount() const;
 };
 
-template <PairKernel Kernel>
-void Simulation<Kernel>::CalculateF() {
+template <PairKernel Kernel, class BoundaryKernel>
+void Simulation<Kernel, BoundaryKernel>::CalculateF() {
     particles_.Rebuild();
     const auto n = static_cast<std::int64_t>(particles_.size());
 #pragma omp parallel for schedule(static)
@@ -89,10 +97,17 @@ void Simulation<Kernel>::CalculateF() {
     }
 
     particles_.ApplyPairForces(kernel_);
+    particles_.ApplyBoundryForces(boundary_kernel_);
+
+    // TODO think how better control external forces?
+    if (settings_.gravity[0] == 0.0 && settings_.gravity[1] == 0.0 && settings_.gravity[2] == 0.0) {
+        return;
+    }
+    particles_.ApplyExternalForces(settings_.gravity);
 }
 
-template <PairKernel Kernel>
-void Simulation<Kernel>::Run(
+template <PairKernel Kernel, class BoundaryKernel>
+void Simulation<Kernel, BoundaryKernel>::Run(
     const std::function<void(const ParticleContainer &, int, double)> &post_iteration) {
     const int iteration_count = IterationCount();
 
@@ -108,6 +123,7 @@ void Simulation<Kernel>::Run(
     for (int iteration = 1; iteration <= iteration_count; ++iteration) {
         detail::CalculateX(particles_, settings_.delta_t);
         CalculateF();
+
         detail::CalculateV(particles_, settings_.delta_t);
 
         const double cur_time = settings_.start_time + settings_.delta_t * iteration;
@@ -118,8 +134,8 @@ void Simulation<Kernel>::Run(
     SPDLOG_DEBUG("Simulation done");
 }
 
-template <PairKernel Kernel>
-int Simulation<Kernel>::IterationCount() const {
+template <PairKernel Kernel, class BoundaryKernel>
+int Simulation<Kernel, BoundaryKernel>::IterationCount() const {
     return static_cast<int>(
         std::llround((settings_.end_time - settings_.start_time) / settings_.delta_t));
 }

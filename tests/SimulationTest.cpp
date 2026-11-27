@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 #include <spdlog/spdlog.h>
 
-#include "../src/LennardJones.h"
 #include "../src/ParticleContainer.h"
 #include "../src/Simulation.h"
+#include "../src/interactions/LennardJones.h"
 #include "../src/utils/Vec3.h"
 
 constexpr double kErrorEpsilon = 1e-4;
@@ -32,7 +32,7 @@ TEST(SimulationTest, EnergyConserved) {
     LennardJones lj{};
     const double original_energy = particles.CalculateEnergy(lj);
 
-    simulation::Simulation sim{std::move(particles), {0, kEndTime, kDeltaT}};
+    simulation::Simulation sim{std::move(particles), {0, kEndTime, kDeltaT, {0, 0, 0}}};
 
     const auto post_iter = [&lj, original_energy](const ParticleContainer &p, const int iteration,
                                                   const double /*time*/) {
@@ -75,7 +75,7 @@ TEST(SimulationTest, MomentumConserved) {
         original_momentum = original_momentum + p.m() * p.v();
     }
 
-    simulation::Simulation sim{std::move(particles), {0, kEndTime, kDeltaT}};
+    simulation::Simulation sim{std::move(particles), {0, kEndTime, kDeltaT, {0, 0, 0}}};
 
     const auto post_iter = [original_momentum](const ParticleContainer &pc, const int iteration,
                                                const double /*time*/) {

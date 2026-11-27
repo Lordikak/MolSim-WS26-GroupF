@@ -124,3 +124,49 @@ void ParticleContainer::reserve(const std::size_t n) {
     m_.reserve(n);
     type_.reserve(n);
 }
+
+// Mirror a particle's position across the selected domain face.
+Vec3 ParticleContainer::GhostParticlePosition(const Vec3 &position, Face face) {
+    Vec3 ghost_x = position;
+    std::size_t axis = 0;
+    double boundary = 0.0;
+
+    switch (face) {
+        case Face::kXMin:
+            axis = 0;
+            boundary = grid_.DomainMin()[0];
+            break;
+        case Face::kXMax:
+            axis = 0;
+            boundary = grid_.DomainMax()[0];
+            break;
+        case Face::kYMin:
+            axis = 1;
+            boundary = grid_.DomainMin()[1];
+            break;
+        case Face::kYMax:
+            axis = 1;
+            boundary = grid_.DomainMax()[1];
+            break;
+        case Face::kZMin:
+            axis = 2;
+            boundary = grid_.DomainMin()[2];
+            break;
+        case Face::kZMax:
+            axis = 2;
+            boundary = grid_.DomainMax()[2];
+            break;
+        default:
+            return position;
+    }
+
+    ghost_x[axis] = 2.0 * boundary - ghost_x[axis];
+    return ghost_x;
+}
+
+void ParticleContainer::ApplyGravity(Index index_start, Index index_end, const Vec3 &gravity) {
+    for (Index i = index_start; i < index_end; ++i) {
+        const Vec3 gravity_force = m_[i] * gravity;
+        f_.set(i, f_.get(i) + gravity_force);
+    }
+}

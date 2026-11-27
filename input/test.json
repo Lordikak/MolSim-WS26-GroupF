@@ -1,0 +1,21 @@
+{
+  "version" : 1,
+  "cuboids" : [
+    {
+      "origin" : [ 5, 5, 5 ],
+      "particle_counts" : [ 50, 50, 10 ],
+      "spacing" : 1.1225,
+      "mass" : 1.0,
+      "initial_velocity" : [ 0.0, 0.0, 0.0 ],
+      "average_velocity": 0.1
+    },
+    {
+      "origin" : [ 25, 25, 20 ],
+      "particle_counts" : [ 10, 10, 10],
+      "spacing" : 1.1225,
+      "mass" : 1.0,
+      "initial_velocity" : [ 0.0, 0.0, 0.0 ],
+      "average_velocity": 0.1
+    }
+  ]
+}
