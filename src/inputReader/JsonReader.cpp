@@ -42,55 +42,200 @@ std::size_t ReadPositiveCount(const Json &value, const std::string &field_name) 
     return static_cast<std::size_t>(count);
 }
 
-void GenerateParticlesInCuboid(ParticleContainer &particles, const Json &cuboid) {
+double ReadPositiveRequiredDouble(const Json &value, const std::string &field_name) {
+    if (!value.is_number_float()) {
+        throw std::invalid_argument("'" + field_name + "' must be a positive scalar double");
+    }
+
+    // Read the scalar value and attempt to cast to integer
+    try {
+        const double val = value.get<double>();
+        if (val < 0) {
+            throw std::invalid_argument("'" + field_name + "' must be a positive double");
+        }
+
+        return val;
+
+    } catch (const Json::parse_error &e) {
+        throw std::invalid_argument("'" + field_name + "' must be a string" +
+                                    std::string(e.what()));
+    }
+}
+
+/**
+ * @brief internal parsing and validation for an expected double value
+ * @param value the current parsed yaml node
+ * @param field_name the name of the parsed field
+ * @param default_value user_defined value read from command line.
+ * Used as a fallback value for if the read file does not contain it
+ * @return either the value written in the field or the default provided
+ */
+double ReadNNDoubleAgainstDefault(const Json &value, const std::string &field_name,
+                                  const double default_value) {
+    // if the field is not in the file, return the default
+    if (value.is_null()) {
+        return default_value;
+    }
+    // if the field is present but malformed, complain
+    if (!value.is_number_float()) {
+        throw std::invalid_argument("'" + field_name + "' must be a scalar");
+    }
+
+    try {
+        const double val = value.get<double>();
+        if (val < 0.0) {
+            throw std::invalid_argument("'" + field_name + "' must be a non-negative double");
+        }
+
+        return static_cast<double>(val);
+    } catch (const Json::parse_error &e) {
+        throw std::invalid_argument("'" + field_name + "' must be a string" +
+                                    std::string(e.what()));
+    }
+}
+
+/**
+ * @brief internal enum parsing and conversion method to avoid overloading ::convert
+ * @param value the current parsed yaml node
+ * @param field_name the name of the parsed field
+ * @return the appropriate enum representing the behavior of that boundary face
+ */
+BoundaryCondition ConvertFromScalar(const Json &value, const std::string &field_name) {
+    if (!value.is_string()) {
+        throw std::invalid_argument("'" + field_name + "' must be an appropriate string");
+    }
+
+    const auto cond = value.get<std::string>();
+
+    if (cond == "outflow") {
+        return BoundaryCondition::kOutflow;
+    } else if (cond == "reflecting") {
+        return BoundaryCondition::kReflecting;
+    } else {
+        throw std::invalid_argument("'" + field_name + "' must either be outflow or reflecting");
+    }
+}
+
+std::array<BoundaryCondition, 6> ReadBoundaryConditions(const Json &value,
+                                                        const std::string &field_name) {
+    constexpr std::array<std::string_view, 6> kBoundaryKeys = {"min_x", "max_x", "min_y",
+                                                               "max_y", "min_z", "max_z"};
+
+    std::array<BoundaryCondition, 6> result;
+
+    for (std::size_t i = 0; i < kBoundaryKeys.size(); ++i) {
+        const auto node = value.at(std::string(kBoundaryKeys[i]));
+        std::string key(kBoundaryKeys[i]);
+
+        if (node.is_null()) {
+            throw std::invalid_argument("'" + field_name + "' missing from input file");
+        }
+
+        if (!node.is_string()) {
+            throw std::invalid_argument("'" + field_name + "' must be an appropriate string");
+        }
+
+        result[i] = ConvertFromScalar(node, field_name + "." + key);
+    }
+
+    return result;
+}
+
+ParticleCuboid ParseCuboid(const Json &cuboid) {
+    ParticleCuboid pc;
+
     const Vec3 origin = ReadVec3(cuboid.at("origin"), "origin");
     const Vec3 initial_velocity = ReadVec3(cuboid.at("initial_velocity"), "initial_velocity");
 
-    const auto &counts = cuboid.at("particle_counts");
+    const auto &counts = cuboid.at("dimensions");
     if (!counts.is_array() || counts.size() != 3) {
-        throw std::invalid_argument("'particle_counts' must be an array of exactly 3 integers");
+        throw std::invalid_argument("'dimensions' must be an array of exactly 3 integers");
     }
-    const std::size_t n1 = ReadPositiveCount(counts.at(0), "particle_counts[0]");
-    const std::size_t n2 = ReadPositiveCount(counts.at(1), "particle_counts[1]");
-    const std::size_t n3 = ReadPositiveCount(counts.at(2), "particle_counts[2]");
+    const std::size_t n1 = ReadPositiveCount(counts[0], "dimensions[0]");
+    const std::size_t n2 = ReadPositiveCount(counts[1], "dimensions[1]");
+    const std::size_t n3 = ReadPositiveCount(counts[2], "dimensions[2]");
 
-    const double spacing = cuboid.at("spacing").get<double>();
-    if (!std::isfinite(spacing) || spacing <= 0.0) {
-        throw std::invalid_argument("'spacing' must be finite and greater than zero");
-    }
-
-    const double mass = cuboid.at("mass").get<double>();
-    if (!std::isfinite(mass) || mass <= 0.0) {
-        throw std::invalid_argument("'mass' must be finite and greater than zero");
-    }
-
-    const double average_velocity = cuboid.at("average_velocity").get<double>();
-    if (!std::isfinite(average_velocity) || average_velocity < 0.0) {
-        throw std::invalid_argument("'average_velocity' must be equal or greater than zero");
-    }
+    const double spacing = ReadPositiveRequiredDouble(cuboid.at("spacing"), "spacing");
+    const double mass = ReadPositiveRequiredDouble(cuboid.at("mass"), "mass");
+    const double brownian_velocity =
+        ReadPositiveRequiredDouble(cuboid.at("brownian_velocity"), "brownian_velocity");
 
     SPDLOG_DEBUG("Cuboid at {}: {}x{}x{} particles, h = {}, m = {}", origin, n1, n2, n3, spacing,
                  mass);
 
-    for (std::size_t i = 0; i < n1; ++i) {
-        for (std::size_t j = 0; j < n2; ++j) {
-            for (std::size_t k = 0; k < n3; ++k) {
-                Vec3 position{origin[0] + static_cast<double>(i) * spacing,
-                              origin[1] + static_cast<double>(j) * spacing,
-                              origin[2] + static_cast<double>(k) * spacing};
+    // initialize the particle cuboid and return
+    pc.min = origin;
+    pc.dimensions = {n1, n2, n3};
+    pc.spacing = spacing;
+    pc.mass = mass;
+    pc.initial_velocity = initial_velocity;
+    pc.brownian_velocity = brownian_velocity;
 
-                auto random_velocity = maxwellBoltzmannDistributedVelocity(average_velocity, 2);
-
-                Vec3 velocity = initial_velocity + random_velocity;
-
-                particles.add(position, velocity, mass);
-            }
-        }
-    }
+    return pc;
 }
+
+ParticleDisc ParseDisc(const Json &disc) {
+    ParticleDisc pd;
+
+    const Vec3 center = ReadVec3(disc.at("center"), "center");
+    const Vec3 initial_velocity = ReadVec3(disc.at("initial_velocity"), "initial_velocity");
+
+    const std::size_t radius = ReadPositiveCount(disc.at("radius"), "radius");
+    const std::size_t height = ReadPositiveCount(disc.at("height"), "height");
+
+    const double spacing = ReadPositiveRequiredDouble(disc.at("spacing"), "spacing");
+    const double mass = ReadPositiveRequiredDouble(disc.at("mass"), "mass");
+    const double brownian_velocity =
+        ReadPositiveRequiredDouble(disc.at("brownian_velocity"), "brownian_velocity");
+
+    SPDLOG_DEBUG("Disc centered at {}: radius {}, h = {}, m = {}", center, radius, spacing, mass);
+
+    pd.center = center;
+    pd.radius = radius;
+    pd.height = height;
+    pd.spacing = spacing;
+    pd.mass = mass;
+    pd.initial_velocity = initial_velocity;
+    pd.brownian_velocity = brownian_velocity;
+
+    return pd;
+}
+
 }  // namespace
 
-void JsonReader::Read(ParticleContainer &particles) {
+GeneratorVector JsonReader::InitializeGenerators(const Json &value) {
+    GeneratorVector generators;
+
+    if (value.contains("cuboids")) {
+        const auto &cuboids = value.at("cuboids");
+        if (!cuboids.is_array()) {
+            throw std::invalid_argument("'cuboids' must be an array");
+        }
+
+        SPDLOG_DEBUG("Reading {} cuboids from {}", cuboids.size(), file_path_);
+
+        for (const auto &cuboid : cuboids) {
+            generators.push_back(std::make_unique<ParticleCuboid>(ParseCuboid(cuboid)));
+        }
+    }
+
+    if (value.contains("discs")) {
+        const auto &discs = value.at("discs");
+        if (!discs.is_array()) {
+            throw std::invalid_argument("'discs' must be an array");
+        }
+
+        SPDLOG_DEBUG("Reading {} discs from {}", discs.size(), file_path_);
+
+        for (const auto &disc : discs) {
+            generators.push_back(std::make_unique<ParticleDisc>(ParseDisc(disc)));
+        }
+    }
+
+    return generators;
+}
+
+SimulationSpec JsonReader::Read(SimulationSettings user_defined) {
     std::ifstream input_file(file_path_);
     if (!input_file) {
         throw std::invalid_argument("Could not open file: " + file_path_);
@@ -102,16 +247,45 @@ void JsonReader::Read(ParticleContainer &particles) {
         throw std::invalid_argument("Unsupported JSON config version");
     }
 
-    const auto &cuboids = config.at("cuboids");
-    if (!cuboids.is_array()) {
-        throw std::invalid_argument("'cuboids' must be an array");
+    // initialize generators for each molecule
+    auto generators = InitializeGenerators(config);
+
+    // read domain boundary behavior
+    const auto behaviors =
+        ReadBoundaryConditions(config.at("boundary_conditions"), "boundary_conditions");
+
+    // read domain bounds and boundary conditions
+    const Vec3 min_bounds = ReadVec3(config.at("bounds_minimum"), "bounds_minimum");
+    const Vec3 max_bounds = ReadVec3(config.at("bounds_maximum"), "bounds_maximum");
+
+    // read cutoff
+    const double cutoff = ReadPositiveRequiredDouble(config.at("cutoff"), "cutoff");
+
+    // read simulation run configuration settings
+
+    const double start =
+        config.contains("start")
+            ? ReadNNDoubleAgainstDefault(config.at("start"), "start", user_defined.start_time)
+            : user_defined.start_time;
+    const double end = config.contains("end") ? ReadNNDoubleAgainstDefault(config.at("end"), "end",
+                                                                           user_defined.end_time)
+                                              : user_defined.end_time;
+    if (end <= 0 || end <= start) {
+        throw std::invalid_argument("'end' must be a positive double greater than the start time");
+    }
+    const double delta_t =
+        config.contains("delta_t")
+            ? ReadNNDoubleAgainstDefault(config.at("delta_t"), "delta_t", user_defined.delta_t)
+            : user_defined.delta_t;
+    if (delta_t > end - start) {
+        throw std::invalid_argument("'delta_t' must be less than the duration of the simulation");
     }
 
-    SPDLOG_DEBUG("Reading {} cuboids from {}", cuboids.size(), file_path_);
+    SimulationSettings ss = SimulationSettings(start, end, delta_t);
+    DomainSettings ds = DomainSettings(min_bounds, max_bounds, cutoff, behaviors);
+    SimulationSpec spec = SimulationSpec(ss, ds, std::move(generators));
 
-    for (const auto &cuboid : cuboids) {
-        GenerateParticlesInCuboid(particles, cuboid);
-    }
+    return spec;
 }
 
 }  // namespace file_reader

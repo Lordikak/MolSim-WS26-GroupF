@@ -66,9 +66,9 @@ ctest --test-dir build
 | Option                   | Default  | Effect                                                                                                                                |
 |--------------------------|----------|---------------------------------------------------------------------------------------------------------------------------------------|
 | `input file`             | -        | Particle input data                                                                                                                   |
-| `--dt`                   | 0.014    | Time step size per iteration                                                                                                          |
-| `--end`                  | 1000     | End time                                                                                                                              |
-| `--start`                | 0        | Start time                                                                                                                            |
+| `--dt`                   | 0.014    | Custom Fallback Time step size per iteration - Overwritten by value in parsed file if present                                         |
+| `--end`                  | 1000     | Custom Fallback End time  - Overwritten by value in parsed file if present                                                            |
+| `--start`                | 0        | Custom Fallback Start time - Overwritten by value in parsed file if present                                                           |
 | `--format`               | `xyz`    | Formats to write the output as. comma separated. `xyz`, `vtk` (binary), `vtka` (ASCII)                                                |
 | `--write_every`          | 10       | Changes how often the output is written                                                                                               |
 | `-o`, `--output`         | `output` | Sets the output Directory                                                                                                             |
@@ -93,6 +93,12 @@ Formats `vtk` and `vtka` are only available when built with `-DENABLE_VTK_OUTPUT
 Contains a cuboids array; each cuboid defines its origin, particle counts, grid spacing, particle mass, and initial velocity. Multiple cuboids can be specified, each with different values.
 
 Example in `input/eingabe-2bodies-lennard-jones.json`
+
+### YAML Input
+
+Contains cuboid arrays with identical definition to above. Reads boundary behavior specification e.g. Outflow or Reflection.
+
+Example in `jndoshousioish`
 
 ### TXT Input
 

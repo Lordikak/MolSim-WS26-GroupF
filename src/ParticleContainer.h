@@ -5,6 +5,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "SimulationConfig.h"
+#include "utils/BoundaryFace.h"
 #include "utils/Index.h"
 #include "utils/Vec3.h"
 
@@ -134,9 +136,12 @@ inline CellCoords operator+(const CellCoords &c, const CellOffset &o) {
 }
 
 // TODO: Implement these (Currently everything is outflow) (Ghost particles for Reflecting needs to
-// be added)
-enum class Face : std::uint8_t { kXMin, kXMax, kYMin, kYMax, kZMin, kZMax };
-enum class BoundaryCondition : std::uint8_t { kOutflow, kReflecting };
+// TODO: Currently behaviors accessible from SimulationSpec
+// be added)lation::Simulation sim{
+//        std::move(particles), {start_time, end_time, delta_t}, LennardJones{.r_cutoff =
+//        kRCutoff}};
+// enum class Face : std::uint8_t { kXMin, kXMax, kYMin, kYMax, kZMin, kZMax };
+// enum class BoundaryCondition : std::uint8_t { kOutflow, kReflecting };
 
 constexpr auto kF64Inf = std::numeric_limits<double>::infinity();
 
@@ -213,6 +218,8 @@ class ParticleContainer {
    public:
     ParticleContainer() = default;
     explicit ParticleContainer(CellGrid grid) : grid_(std::move(grid)) {}
+    explicit ParticleContainer(DomainSettings domain)
+        : grid_(domain.min, domain.max, domain.cutoff) {}
 
     /// @name Iteration
     /// @{
@@ -226,6 +233,11 @@ class ParticleContainer {
     /// @return Read only Iterator past the last particle
     [[nodiscard]] ParticleIterator<const ParticleContainer> end() const { return {*this, size()}; }
     /// @}
+
+    /**
+     * @brief wrapper method for the standard add. Extended to use the ParticleData struct
+     */
+    void add(const ParticleData pd) { add(pd.position, pd.velocity, pd.mass); }
 
     /**
      * @brief Appends a single particle
@@ -339,7 +351,7 @@ class ParticleContainer {
      * Kinetic energy is calculated for each particle, while Potential energy is calculated only
      * once per unordered pair
      *
-     * @param kernel Adds the potential between @p p_i and @p p_j to the accumulator @p energy
+     * @param kernel Adds the potential between @p p_i and @p p_j
      * @return The total potential energy
      */
     template <class Kernel>

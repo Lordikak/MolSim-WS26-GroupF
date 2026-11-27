@@ -1,0 +1,31 @@
+version: 1
+cuboids:
+  - origin: [20, 20, 0.0]
+    dimensions: [100, 20, 1]
+    spacing: 1.1225
+    mass: 1.0
+    initial_velocity: [0.0, 0.0, 0.0]
+    brownian_velocity: 0.1
+
+  - origin: [70, 60, 0.0]
+    dimensions: [20, 20, 1]
+    spacing: 1.1225
+    mass: 1.0
+    initial_velocity: [0.0, -10, 0.0]
+    brownian_velocity: 0.1
+
+bounds_minimum: [0.0, 0.0, 0.0]
+bounds_maximum: [100.0, 100.0, 100.0]
+cutoff: 3.0
+
+boundary_conditions:
+  min_x: reflecting
+  max_x: reflecting
+  min_y: reflecting
+  max_y: reflecting
+  min_z: outflow
+  max_z: outflow
+
+start: 0.0
+end: 10.0
+delta_t: 0.005

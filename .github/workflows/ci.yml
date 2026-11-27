@@ -26,11 +26,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+      - name: Refresh apt index
+        run: sudo apt-get update
       - name: Install tooling
         uses: awalsh128/cache-apt-pkgs-action@v1
         with:
           packages: clang-tidy libvtk9-dev
-          version: 1.0
+          version: 1.1
       - name: Configure
         run: cmake -S . -B build -DENABLE_VTK_OUTPUT=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
       - name: clang-tidy
@@ -40,11 +42,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+      - name: Refresh apt index
+        run: sudo apt-get update
       - name: Install tooling
         uses: awalsh128/cache-apt-pkgs-action@v1
         with:
           packages: libvtk9-dev
-          version: 1.0
+          version: 1.1
       - name: Configure
         run: cmake -S . -B build -DENABLE_VTK_OUTPUT=ON
       - name: Build
